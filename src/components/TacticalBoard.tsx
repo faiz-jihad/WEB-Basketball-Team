@@ -84,9 +84,12 @@ export const TacticalBoard: React.FC = () => {
     setActivePlay(true);
     const tl = gsap.timeline();
 
-    // Reset positions
+    // Reset player positions back to the bench (x:0, y:0 translation) and reset dash offsets
     const playersRefs = [pgRef.current, sgRef.current, sfRef.current, pfRef.current, cRef.current];
-    gsap.set(playersRefs, { opacity: 0, scale: 0.5 });
+    gsap.set(playersRefs, { x: 0, y: 0, opacity: 0, scale: 0.5 });
+    gsap.set('.strategy-line-1', { strokeDashoffset: 200 });
+    gsap.set('.strategy-line-2', { strokeDashoffset: 400 });
+    gsap.set('.strategy-line-3', { strokeDashoffset: 300 });
 
     // 2. 5 players run to positions one-by-one with glow and trails
     PLAY_STEPS.offensive.forEach((pos, index) => {
@@ -98,17 +101,17 @@ export const TacticalBoard: React.FC = () => {
         scale: 1,
         duration: 0.8,
         ease: 'power2.out'
-      }, index * 0.3); // stagger entrance
+      }, index * 0.25); // staggered entrance
     });
 
     // 3. Strategy dashed lines & arrows animate (PG passes to SG, SG drives, crosses to SF, alley-oop to PF)
     tl.to('.strategy-line-1', { strokeDashoffset: 0, duration: 0.8, ease: 'none' }, '+=0.2');
-    tl.to('.strategy-line-2', { strokeDashoffset: 0, duration: 0.6, ease: 'none' });
+    tl.to('.strategy-line-2', { strokeDashoffset: 0, duration: 0.8, ease: 'none' });
     tl.to('.strategy-line-3', { strokeDashoffset: 0, duration: 0.8, ease: 'none' });
   };
 
-  const handlePlayerClick = (index: number) => {
-    const player = players[index];
+  const handlePlayerClickByPosition = (position: 'PG' | 'SG' | 'SF' | 'PF' | 'C') => {
+    const player = players.find(p => p.position === position);
     if (player) {
       setSelectedPlayer(player);
       addXP(15); // grant user XP for exploring tactical sheet
@@ -179,7 +182,6 @@ export const TacticalBoard: React.FC = () => {
                 strokeWidth="3"
                 strokeDasharray="8,8"
                 strokeDashoffset="200"
-                style={{ strokeDashoffset: activePlay ? 0 : 200, transition: 'stroke-dashoffset 1.5s ease-in-out' }}
               />
               {/* SG -> SF Cross pass */}
               <path
@@ -190,7 +192,6 @@ export const TacticalBoard: React.FC = () => {
                 strokeWidth="3"
                 strokeDasharray="6,6"
                 strokeDashoffset="400"
-                style={{ strokeDashoffset: activePlay ? 0 : 400, transition: 'stroke-dashoffset 1.5s ease-in-out' }}
               />
               {/* SF -> PF Alley-oop Dunk lob */}
               <path
@@ -201,7 +202,6 @@ export const TacticalBoard: React.FC = () => {
                 strokeWidth="3.5"
                 strokeDasharray="6,6"
                 strokeDashoffset="300"
-                style={{ strokeDashoffset: activePlay ? 0 : 300, transition: 'stroke-dashoffset 1.5s ease-in-out' }}
               />
 
               {/* SVG Markers (Arrows) */}
@@ -215,7 +215,7 @@ export const TacticalBoard: React.FC = () => {
                 ref={pgRef}
                 transform="translate(300, 380)"
                 className="cursor-pointer group"
-                onClick={() => handlePlayerClick(0)}
+                onClick={() => handlePlayerClickByPosition('PG')}
               >
                 <circle r="22" fill="#080808" stroke="#FF5A00" strokeWidth="2.5" filter="url(#glow)" />
                 <circle r="18" fill="rgba(255,90,0,0.15)" />
@@ -229,7 +229,7 @@ export const TacticalBoard: React.FC = () => {
                 ref={sgRef}
                 transform="translate(300, 380)"
                 className="cursor-pointer group"
-                onClick={() => handlePlayerClick(1)}
+                onClick={() => handlePlayerClickByPosition('SG')}
               >
                 <circle r="22" fill="#080808" stroke="#FF5A00" strokeWidth="2.5" filter="url(#glow)" />
                 <circle r="18" fill="rgba(255,90,0,0.15)" />
@@ -243,7 +243,7 @@ export const TacticalBoard: React.FC = () => {
                 ref={sfRef}
                 transform="translate(300, 380)"
                 className="cursor-pointer group"
-                onClick={() => handlePlayerClick(2)}
+                onClick={() => handlePlayerClickByPosition('SF')}
               >
                 <circle r="22" fill="#080808" stroke="#FF5A00" strokeWidth="2.5" filter="url(#glow)" />
                 <circle r="18" fill="rgba(255,90,0,0.15)" />
@@ -257,7 +257,7 @@ export const TacticalBoard: React.FC = () => {
                 ref={pfRef}
                 transform="translate(300, 380)"
                 className="cursor-pointer group"
-                onClick={() => handlePlayerClick(3)}
+                onClick={() => handlePlayerClickByPosition('PF')}
               >
                 <circle r="22" fill="#080808" stroke="#FF5A00" strokeWidth="2.5" filter="url(#glow)" />
                 <circle r="18" fill="rgba(255,90,0,0.15)" />
@@ -271,7 +271,7 @@ export const TacticalBoard: React.FC = () => {
                 ref={cRef}
                 transform="translate(300, 380)"
                 className="cursor-pointer group"
-                onClick={() => handlePlayerClick(4)}
+                onClick={() => handlePlayerClickByPosition('C')}
               >
                 <circle r="22" fill="#080808" stroke="#FF5A00" strokeWidth="2.5" filter="url(#glow)" />
                 <circle r="18" fill="rgba(255,90,0,0.15)" />

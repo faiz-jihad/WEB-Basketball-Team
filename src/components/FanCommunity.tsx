@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, MessageSquare, Send, Trophy, UserPlus } from 'lucide-react';
+import { Check, MessageSquare, Send, Trophy, UserPlus, Lock } from 'lucide-react';
 import { db } from '../lib/supabase';
 import type { Comment } from '../lib/supabase';
+import { loginWithGoogle, logout } from '../lib/firebase';
 import useAppStore from '../lib/store';
 import { getTranslation } from '../lib/i18n';
 
@@ -15,7 +16,40 @@ export const FanCommunity: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
-  
+
+  const [chatEnabled, setChatEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bsq_chat_status");
+      return saved !== "closed";
+    }
+    return true;
+  });
+
+  const [predictEnabled, setPredictEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bsq_prediction_status");
+      return saved !== "closed";
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const chatStatus = localStorage.getItem("bsq_chat_status");
+      const predStatus = localStorage.getItem("bsq_prediction_status");
+      setChatEnabled(chatStatus !== "closed");
+      setPredictEnabled(predStatus !== "closed");
+    };
+
+    window.addEventListener("bsq_fan_features_updated", handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("bsq_fan_features_updated", handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
   // Prediction state
   const [homeScorePred, setHomeScorePred] = useState('110');
   const [awayScorePred, setAwayScorePred] = useState('105');
@@ -23,23 +57,47 @@ export const FanCommunity: React.FC = () => {
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch comments for live match m2
+  const [activeMatchId, setActiveMatchId] = useState('general');
+  const [activeMatchName, setActiveMatchName] = useState('General Team Discussion');
+
+  // Fetch active match
   useEffect(() => {
-    (db as any).from('comments').select('*').eq('match_id', 'm2').order('created_at', { ascending: true }).then(({ data }: any) => {
+    (db as any).from('matches').select('*').then(({ data }: any) => {
+      if (data && data.length > 0) {
+        const liveMatch = data.find((m: any) => m.status === 'LIVE');
+        if (liveMatch) {
+          setActiveMatchId(liveMatch.id);
+          setActiveMatchName(`BSQ ALL-FIVE vs ${liveMatch.opponent}`);
+        } else {
+          const upcoming = data.find((m: any) => m.status === 'UPCOMING');
+          if (upcoming) {
+            setActiveMatchId(upcoming.id);
+            setActiveMatchName(`BSQ ALL-FIVE vs ${upcoming.opponent}`);
+          }
+        }
+      }
+    });
+  }, []);
+
+  // Fetch comments for active match
+  useEffect(() => {
+    (db as any).from('comments').select('*').eq('match_id', activeMatchId).order('created_at', { ascending: true }).then(({ data }: any) => {
       if (data) setComments(data as Comment[]);
     });
 
     // Subscribe to realtime comment insertions
     const channel = (db as any).channel('comments:INSERT')
       .on('postgres_changes' as any, { event: 'INSERT', table: 'comments' }, (payload: any) => {
-        setComments(prev => [...prev, payload.new as Comment]);
+        if (payload.new.match_id === activeMatchId) {
+          setComments(prev => [...prev, payload.new as Comment]);
+        }
       })
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      // unsubscribe not fully implemented in mockSupabase, preventing crash
     };
-  }, []);
+  }, [activeMatchId]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -59,7 +117,7 @@ export const FanCommunity: React.FC = () => {
     if (!commentText.trim()) return;
 
     (db as any).from('comments').insert({
-      match_id: 'm2',
+      match_id: activeMatchId,
       user_id: `u_${fan.username}`,
       username: fan.username,
       avatar: fan.avatar,
@@ -94,6 +152,8 @@ export const FanCommunity: React.FC = () => {
   // Calculate XP percentage for level progress
   const nextLevelThreshold = fan.level * 100;
   const xpPercentage = Math.min((fan.xp / nextLevelThreshold) * 100, 100);
+  
+  const firebaseUser = useAppStore(state => state.firebaseUser);
 
   return (
     <section id="fan-community" className="py-24 px-6 bg-brand-black relative border-b border-white/5">
@@ -103,106 +163,46 @@ export const FanCommunity: React.FC = () => {
         {/* Left Col: Gamification Profile & Prediction */}
         <div className="lg:col-span-5 flex flex-col gap-8">
           
-          {/* Fan Dashboard Profile */}
-          <div className="glass-panel-heavy rounded-3xl p-8 border border-white/5 relative overflow-hidden">
+          {/* Fan Dashboard Profile (Simplified) */}
+          <div className="glass-panel-heavy rounded-3xl p-8 border border-white/5 relative overflow-hidden flex flex-col justify-between h-full min-h-[300px]">
             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
             
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-start">
+            <div>
+              <div className="text-start mb-6">
                 <span className="text-brand-orange font-display text-sm font-semibold tracking-[0.25em] uppercase block mb-1">{t('fan', 'clubhouse')}</span>
                 <h3 className="text-2xl font-title font-black uppercase text-white">{t('fan', 'clubhouseTitle')}</h3>
               </div>
-              <button
-                onClick={() => setShowLogin(!showLogin)}
-                className="p-2 bg-white/5 hover:bg-brand-orange/20 text-gray-400 hover:text-brand-orange rounded-xl border border-white/10 transition-all text-xs font-display flex items-center gap-1.5 cursor-pointer"
-              >
-                <UserPlus size={14} /> {t('fan', 'changeId')}
-              </button>
-            </div>
 
-            {/* Change Profile Drawer */}
-            {showLogin && (
-              <motion.form
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                className="bg-white/2 border border-white/5 rounded-2xl p-4 mb-6 overflow-hidden"
-                onSubmit={handleRegister}
-              >
-                <label className="text-[10px] text-gray-400 font-display font-bold uppercase tracking-wider block mb-2 text-start">{t('fan', 'createName')}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder={t('fan', 'usernamePlaceholder')}
-                    value={usernameInput}
-                    onChange={(e) => setUsernameInput(e.target.value)}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand-orange font-display"
-                  />
-                  <button type="submit" className="bg-brand-orange hover:bg-brand-burnt text-brand-black px-4 rounded-xl text-xs font-black uppercase font-display cursor-pointer">
-                    {t('fan', 'apply')}
-                  </button>
+              {!firebaseUser ? (
+                <div className="bg-brand-orange/10 border border-brand-orange/20 text-brand-orange text-xs p-4 rounded-xl mb-6 font-display leading-relaxed">
+                  Welcome, guest! To start earning XP, predicting scores, and chatting, please login with Google in the Account Page.
                 </div>
-              </motion.form>
-            )}
-
-            {/* User Details */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-brand-orange/15 border border-brand-orange/30 overflow-hidden flex items-center justify-center p-1.5 shadow-lg shadow-brand-orange/5">
-                <img src={fan.avatar} alt={fan.username} className="w-full h-full" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-lg font-title font-black text-white leading-none">
-                  {fan.username}
-                </h4>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="px-2 py-0.5 bg-brand-orange/20 text-brand-orange text-[9px] font-black rounded uppercase">
-                    {t('fan', 'level')} {fan.level}
-                  </span>
-                  <span className="text-gray-500 text-[10px] font-display">
-                    {fan.xp} / {nextLevelThreshold} {t('fan', 'xp')}
-                  </span>
+              ) : (
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-2xl bg-brand-orange/15 border border-brand-orange/30 overflow-hidden flex items-center justify-center p-1.5 shadow-lg shadow-brand-orange/5">
+                    <img src={fan.avatar} alt={fan.username} className="w-full h-full object-cover rounded-xl" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-title font-black text-white leading-none mb-2">
+                      {fan.username}
+                    </h4>
+                    <span className="px-2 py-0.5 bg-brand-orange/20 text-brand-orange text-[9px] font-black rounded uppercase inline-block mb-1">
+                      {t('fan', 'level')} {fan.level}
+                    </span>
+                    <p className="text-[10px] text-gray-500 font-display">
+                      {fan.xp} / {nextLevelThreshold} XP
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Level XP Bar */}
-            <div className="mb-6">
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden relative">
-                <div
-                  className="h-full bg-gradient-to-r from-brand-orange to-brand-burnt transition-all duration-500"
-                  style={{ width: `${xpPercentage}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Badges Grid */}
-            <div>
-              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-display font-bold block mb-3 text-start">{t('fan', 'earnedBadges')}</span>
-              <div className="grid grid-cols-4 gap-3">
-                {fan.badges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className="bg-white/2 hover:bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center relative group"
-                  >
-                    <span className="text-xl mb-1">{badge.icon}</span>
-                    <span className="text-[9px] font-bold text-gray-300 font-display truncate w-full">{badge.name}</span>
-                    
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 p-2 bg-brand-black border border-white/10 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity text-[9px] text-gray-400 z-10">
-                      <strong>{badge.name}</strong>
-                      <p className="mt-1">{badge.description}</p>
-                    </div>
-                  </div>
-                ))}
-                {fan.badges.length < 4 && Array.from({ length: 4 - fan.badges.length }).map((_, i) => (
-                  <div key={i} className="border border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center text-gray-600">
-                    <span className="text-lg">🔒</span>
-                    <span className="text-[9px] font-display mt-1">{t('fan', 'locked')}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+            <a
+              href="#/account"
+              className="w-full p-4 bg-white/5 hover:bg-brand-orange/20 text-gray-400 hover:text-brand-orange rounded-xl border border-white/10 transition-all text-xs font-display flex items-center justify-center gap-2 cursor-pointer shadow-lg uppercase tracking-widest font-bold"
+            >
+              {firebaseUser ? 'View Full Profile & Tickets' : 'Login to Your Account'}
+            </a>
           </div>
 
           {/* Match Predictor Card */}
@@ -217,7 +217,37 @@ export const FanCommunity: React.FC = () => {
             </p>
 
             <AnimatePresence mode="wait">
-              {!hasPredicted ? (
+              {!firebaseUser ? (
+                <motion.div
+                  key="predGuest"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center"
+                >
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 mx-auto mb-3">
+                    <Lock size={18} />
+                  </div>
+                  <h5 className="font-bold text-gray-400 uppercase text-sm">Login Required</h5>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Please Login with Google to predict scores and earn XP.
+                  </p>
+                </motion.div>
+              ) : !predictEnabled ? (
+                <motion.div
+                  key="predAdminLocked"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center"
+                >
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 mx-auto mb-3">
+                    <Lock size={18} />
+                  </div>
+                  <h5 className="font-bold text-gray-400 uppercase text-sm">Predictions Closed</h5>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Score predictions are currently locked by the administrator.
+                  </p>
+                </motion.div>
+              ) : !hasPredicted ? (
                 <motion.form
                   key="predForm"
                   initial={{ opacity: 0 }}
@@ -292,7 +322,7 @@ export const FanCommunity: React.FC = () => {
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
               <div>
                 <h4 className="font-title font-black uppercase text-white text-sm">{t('fan', 'chatTitle')}</h4>
-                <p className="text-[10px] text-gray-500 font-display uppercase">{t('fan', 'vortexVsApex')}</p>
+                <p className="text-[10px] text-gray-500 font-display uppercase">{activeMatchName}</p>
               </div>
             </div>
             <span className="text-[10px] text-gray-500 font-display flex items-center gap-1">
@@ -302,66 +332,87 @@ export const FanCommunity: React.FC = () => {
 
           {/* Messages Feed */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            <AnimatePresence initial={false}>
-              {comments.map((comment) => {
-                const isMe = comment.username === fan.username;
-                const bubbleCorner = isMe
-                  ? (isRtl ? 'rounded-tl-none' : 'rounded-tr-none')
-                  : (isRtl ? 'rounded-tr-none' : 'rounded-tl-none');
-                
-                return (
-                  <motion.div
-                    key={comment.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}
-                  >
-                    {/* User Avatar */}
-                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-brand-orange/15 border border-brand-orange/30 p-1 flex-shrink-0">
-                      <img src={comment.avatar} alt={comment.username} className="w-full h-full" />
-                    </div>
-
-                    {/* Bubble Content */}
-                    <div className={`max-w-[70%] ${isMe ? (isRtl ? 'text-left' : 'text-right') : (isRtl ? 'text-right' : 'text-left')}`}>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase font-display block mb-1">
-                        {comment.username}
-                      </span>
-                      <div className={`rounded-2xl px-4 py-2.5 text-xs text-white ${bubbleCorner} ${
-                        isMe
-                          ? 'bg-brand-orange/20 border border-brand-orange/30'
-                          : 'bg-white/3 border border-white/10'
-                      }`}>
-                        {comment.content}
+            {comments.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 space-y-3">
+                <MessageSquare size={32} />
+                <p className="text-[10px] font-display uppercase tracking-widest text-center max-w-[200px]">
+                  Be the first to start the conversation!
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {comments.map((comment) => {
+                  const isMe = comment.username === fan.username;
+                  const bubbleCorner = isMe
+                    ? (isRtl ? 'rounded-tl-none' : 'rounded-tr-none')
+                    : (isRtl ? 'rounded-tr-none' : 'rounded-tl-none');
+                  
+                  return (
+                    <motion.div
+                      key={comment.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}
+                    >
+                      {/* User Avatar */}
+                      <div className="w-8 h-8 rounded-lg overflow-hidden bg-brand-orange/15 border border-brand-orange/30 p-1 flex-shrink-0">
+                        <img src={comment.avatar} alt={comment.username} className="w-full h-full" />
                       </div>
-                      <span className="text-[8px] text-gray-600 mt-1 block">
-                        {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                    </div>
 
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                      {/* Bubble Content */}
+                      <div className={`max-w-[70%] ${isMe ? (isRtl ? 'text-left' : 'text-right') : (isRtl ? 'text-right' : 'text-left')}`}>
+                        <span className="text-[9px] font-bold text-gray-500 uppercase font-display block mb-1">
+                          {comment.username}
+                        </span>
+                        <div className={`rounded-2xl px-4 py-2.5 text-xs text-white ${bubbleCorner} ${
+                          isMe
+                            ? 'bg-brand-orange/20 border border-brand-orange/30'
+                            : 'bg-white/3 border border-white/10'
+                        }`}>
+                          {comment.content}
+                        </div>
+                        <span className="text-[8px] text-gray-600 mt-1 block">
+                          {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
             <div ref={chatEndRef} />
           </div>
 
           {/* Message Input form */}
-          <form onSubmit={handleSendComment} className={`p-4 bg-white/2 border-t border-white/5 flex gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <input
-              type="text"
-              required
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder={`${t('fan', 'chatPlaceholder')} ${fan.username}...`}
-              className="flex-1 bg-black/50 border border-white/10 focus:border-brand-orange focus:outline-none px-4 py-3 rounded-xl text-xs text-white placeholder-gray-600 font-display"
-            />
-            <button
-              type="submit"
-              className="p-3 bg-brand-orange hover:bg-brand-burnt text-brand-black rounded-xl transition-all cursor-pointer flex items-center justify-center"
-            >
-              <Send size={16} className={isRtl ? 'transform rotate-180' : ''} />
-            </button>
-          </form>
+          {!firebaseUser ? (
+            <div className={`p-4 bg-white/2 border-t border-white/5 flex gap-3 items-center justify-center text-gray-500 text-xs font-display`}>
+              <Lock size={14} />
+              <span>Please Login with Google to chat.</span>
+            </div>
+          ) : !chatEnabled ? (
+            <div className={`p-4 bg-white/2 border-t border-white/5 flex gap-3 items-center justify-center text-gray-500 text-xs font-display`}>
+              <Lock size={14} />
+              <span>{language === 'id' ? 'Live Chat sedang ditutup oleh Admin' : 'Live Chat is currently locked by Admin'}</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSendComment} className={`p-4 bg-white/2 border-t border-white/5 flex gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <input
+                type="text"
+                required
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder={`${t('fan', 'chatPlaceholder')} ${fan.username}...`}
+                className="flex-1 bg-black/50 border border-white/10 focus:border-brand-orange focus:outline-none px-4 py-3 rounded-xl text-xs text-white placeholder-gray-600 font-display"
+              />
+              <button
+                type="submit"
+                className="p-3 bg-brand-orange hover:bg-brand-burnt text-brand-black rounded-xl transition-all cursor-pointer flex items-center justify-center"
+              >
+                <Send size={16} className={isRtl ? 'transform rotate-180' : ''} />
+              </button>
+            </form>
+          )}
 
         </div>
 

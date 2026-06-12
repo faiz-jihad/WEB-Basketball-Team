@@ -45,6 +45,8 @@ interface AppState {
 
   // Fan Session
   fan: FanProfile;
+  firebaseUser: any | null;
+  setFirebaseUser: (user: any | null) => void;
   loginFan: (username: string) => void;
   addXP: (amount: number) => void;
   unlockBadge: (badgeId: string, badgeName: string, icon: string, description: string) => void;
@@ -132,6 +134,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     level: 1,
     xp: 25,
     badges: MOCK_BADGES
+  },
+  firebaseUser: null,
+  setFirebaseUser: (user) => {
+    set(state => {
+      if (user) {
+        // Automatically sync Fan Profile to Google User
+        return {
+          firebaseUser: user,
+          fan: {
+            ...state.fan,
+            username: user.displayName || 'Google Fan',
+            avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.displayName}`
+          }
+        };
+      }
+      return { firebaseUser: null };
+    });
   },
   loginFan: (username) => {
     set(() => ({

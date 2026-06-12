@@ -16,12 +16,32 @@ export const translations = {
     },
     hero: {
       title: "BSQ ALL-FIVE",
-      slogan: "Step into the future of basketball. The official school basketball team of Al Hikmah Cirebon, representing student-athlete excellence, grit, and legacy.",
+      slogan: "FORTIS FORTUNA ADIUVAT",
       champions: "5X CHAMPIONS",
       liveMatch: "LIVE MATCH NOW",
       matchesBtn: "Match Center",
       ticketsBtn: "Book Tickets",
       scroll: "Scroll to enter"
+    },
+    scrollytelling: {
+      slide1Title: "A NEW ERA OF PRIDE",
+      slide1Desc: "Welcome to the Golden Stallions. Witness our school team logo forge its elite legacy as we scroll forward.",
+      slide2Title: "GRIT & DEDICATION",
+      slide2Desc: "From training on open school courts to dominating regional matches, every frame represents student-athlete hard work.",
+      slide3Title: "SYMBOL OF CIREBON",
+      slide3Desc: "The golden horses on the logo symbolize speed, strength, sportsmanship, and Al Hikmah school sports pride.",
+      slide4Title: "WE SHINE TOGETHER",
+      slide4Desc: "BSQ ALL-FIVE is more than a team; we are a family representing Sekolah Al Hikmah. Join the journey."
+    },
+    tacticScrolly: {
+      slide1Title: "MASTERING THE PLAYBOOK",
+      slide1Desc: "Our tactical plays are born from hours of meticulous study, analyzing every possible opponent formation to find the perfect counter.",
+      slide2Title: "PRECISION PASSING",
+      slide2Desc: "Every movement is calculated. Crisp passes and seamless rotations allow us to break down even the toughest defensive schemes.",
+      slide3Title: "DEFENSIVE ANCHOR",
+      slide3Desc: "A strong defense initiates our lethal transition offense. We trap, contest, and secure rebounds with unyielding tenacity.",
+      slide4Title: "FLAWLESS EXECUTION",
+      slide4Desc: "When the clock winds down, we trust the system. Precision, patience, and execution make us unstoppable."
     },
     tactical: {
       title: "Tactical Playbook",
@@ -290,12 +310,32 @@ export const translations = {
     },
     hero: {
       title: "BSQ ALL-FIVE",
-      slogan: "Langkah ke masa depan bola basket. Tim basket resmi dari Sekolah Al Hikmah Cirebon yang merepresentasikan dedikasi, prestasi, dan semangat atlet pelajar.",
+      slogan: "FORTIS FORTUNA ADIUVAT",
       champions: "5X JUARA",
       liveMatch: "PERTANDINGAN LIVE SEKARANG",
       matchesBtn: "Pusat Pertandingan",
       ticketsBtn: "Pesan Tiket",
       scroll: "Gulir untuk masuk"
+    },
+    scrollytelling: {
+      slide1Title: "ERA BARU KEBANGGAAN",
+      slide1Desc: "Selamat datang di rumah Golden Stallions. Sakasikan logo tim sekolah kami menempa warisan prestasinya seiring Anda bergulir.",
+      slide2Title: "KERJA KERAS & DEDIKASI",
+      slide2Desc: "Dari berlatih di lapangan sekolah terbuka hingga mendominasi pertandingan regional, setiap frame melambangkan keringat atlet pelajar kami.",
+      slide3Title: "SIMBOL KUDA EMAS CIREBON",
+      slide3Desc: "Dua kuda emas pada logo melambangkan kecepatan, kekuatan, sportivitas, dan kebanggaan olahraga Sekolah Al Hikmah Cirebon.",
+      slide4Title: "KAMI BERSINAR BERSAMA",
+      slide4Desc: "BSQ ALL-FIVE bukan sekadar tim; kami adalah keluarga besar Sekolah Al Hikmah Cirebon. Mari bergabung dalam perjalanan kami."
+    },
+    tacticScrolly: {
+      slide1Title: "MENGUASAI BUKU TAKTIK",
+      slide1Desc: "Taktik permainan kami lahir dari berjam-jam studi yang cermat, menganalisis setiap kemungkinan formasi lawan untuk menemukan serangan balik yang sempurna.",
+      slide2Title: "OPERAN PRESISI",
+      slide2Desc: "Setiap gerakan diperhitungkan. Operan tajam dan rotasi mulus memungkinkan kami membongkar skema pertahanan terkuat sekalipun.",
+      slide3Title: "JANGKAR PERTAHANAN",
+      slide3Desc: "Pertahanan yang kuat menginisiasi serangan transisi kami yang mematikan. Kami menjebak, merebut, dan mengamankan rebound dengan kegigihan yang tak tergoyahkan.",
+      slide4Title: "EKSEKUSI SEMPURNA",
+      slide4Desc: "Saat waktu tersisa sedikit, kami mempercayai sistem. Presisi, kesabaran, dan eksekusi membuat kami tak terbendung."
     },
     tactical: {
       title: "Buku Taktik",
@@ -564,12 +604,32 @@ export const translations = {
     },
     hero: {
       title: "BSQ ALL-FIVE",
-      slogan: "ادخل إلى مستقبل كرة السلة. الفريق المدرسي الرسمي لكرة السلة لمدرسة الحكمة بالقمة بمدينة سيريبون، يمثل تميز الطلاب الرياضيين وعزيمتهم وإرثهم.",
+      slogan: "FORTIS FORTUNA ADIUVAT",
       champions: "أبطال 5 مرات",
       liveMatch: "مباراة مباشرة الآن",
       matchesBtn: "مركز المباريات",
       ticketsBtn: "حجز التذاكر",
       scroll: "مرر للدخول"
+    },
+    scrollytelling: {
+      slide1Title: "عهد جديد من الفخر",
+      slide1Desc: "مرحباً بكم في موطن الخيول الذهبية. شاهد شعار فريقنا المدرسي وهو يصنع إرثه المتميز مع التمرير لأسفل.",
+      slide2Title: "العزيمة والتفاني",
+      slide2Desc: "من التدريب في الملاعب المدرسية المفتوحة إلى السيطرة على المباريات الإقليمية، كل إطار يمثل العمل الجاد لطلابنا الرياضيين.",
+      slide3Title: "رمز خيول سيريبون الذهبية",
+      slide3Desc: "ترمز الخيول الذهبية الموجودة في الشعار إلى السرعة، القوة، الروح الرياضية، وفخر الرياضة المدرسية بمدرسة الحكمة.",
+      slide4Title: "نحن نشع معاً",
+      slide4Desc: "فريق BSQ ALL-FIVE ليس مجرد فريق؛ نحن عائلة تمثل مدرسة الحكمة سيريبون. انضم إلى رحلتنا."
+    },
+    tacticScrolly: {
+      slide1Title: "إتقان خطة اللعب",
+      slide1Desc: "تولد خططنا التكتيكية من ساعات من الدراسة الدقيقة، وتحليل كل تشكيل محتمل للخصم لإيجاد الهجوم المضاد المثالي.",
+      slide2Title: "تمرير دقيق",
+      slide2Desc: "يتم حساب كل حركة. التمريرات الدقيقة والدوران السلس يسمح لنا باختراق أصعب الخطط الدفاعية.",
+      slide3Title: "مرتكز دفاعي",
+      slide3Desc: "الدفاع القوي يبدأ هجومنا الانتقالي القاتل. نحن نحاصر، نتحدى، ونؤمن المرتدات بعزيمة لا تلين.",
+      slide4Title: "تنفيذ لا تشوبه شائبة",
+      slide4Desc: "عندما ينفد الوقت، نحن نثق في النظام. الدقة والصبر والتنفيذ تجعلنا فريقًا لا يُقهر."
     },
     tactical: {
       title: "مخطط التكتيك",

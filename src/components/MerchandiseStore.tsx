@@ -77,10 +77,23 @@ export const MerchandiseStore: React.FC = () => {
     );
   };
 
-  useEffect(() => {
+  const loadProducts = () => {
     (db as any).from('merchandise').select('*').then(({ data }: any) => {
       if (data) setProducts(data as Merchandise[]);
     });
+  };
+
+  useEffect(() => {
+    loadProducts();
+
+    const handleStorageChange = () => loadProducts();
+    window.addEventListener("bsq_inventory_updated", handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("bsq_inventory_updated", handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   const handleAddToCart = (prod: Merchandise, size?: string) => {
@@ -96,6 +109,15 @@ export const MerchandiseStore: React.FC = () => {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
+    
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderDetails = cart.map(item => `- ${item.name} (${item.size}) x${item.quantity}`).join('\n');
+    
+    const phoneNumber = "6281234567890";
+    const text = encodeURIComponent(`Halo, saya ingin memesan merchandise berikut:\n\n${orderDetails}\n\nTotal Harga: Rp ${total.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
+    
+    window.open(`https://wa.me/${phoneNumber}?text=${text}`, '_blank');
+
     clearCart();
     setCartOpen(false);
     addXP(100); // Massive XP for checking out

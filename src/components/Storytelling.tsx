@@ -6,31 +6,33 @@ import { ChevronRight, Sparkles } from 'lucide-react';
 import Trophy3D from './3d/Trophy3D';
 import useAppStore from '../lib/store';
 import { getTranslation } from '../lib/i18n';
+import { db } from '../lib/supabase';
+import type { Milestone } from '../lib/supabase';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const getMilestones = (lang: string) => {
   const data = {
     en: [
-      { year: '1998', title: 'Arena Genesis', desc: 'BSQ ALL-FIVE Basketball Club was established in Metropolis, building a state-of-the-art training camp.', icon: '🏢' },
-      { year: '2005', title: 'First Playoff Run', desc: 'Led by Hall of Fame coach Larry Croft, the team reached their first Conference Finals.', icon: '📈' },
-      { year: '2012', title: 'Gold Dynasty', desc: 'BSQ ALL-FIVE claimed its first Gold Championship Trophy in a thrilling 7-game finals series.', icon: '🏆' },
-      { year: '2020', title: 'Blackout Rebrand', desc: 'Adopted the modern premium deep-black and orange aesthetic, launching the digital fan community.', icon: '🎨' },
-      { year: '2025', title: 'Back-to-Back Crowns', desc: 'Sealed an undefeated playoff run to lift the fifth championship, cementing our dynasty.', icon: '👑' }
+      { year: '2015', title: 'Foundation Era', desc: 'BSQ basketball team is founded under the Al Hikmah school sports program in Cirebon, starting on a humble outdoor court.', icon: '🏫' },
+      { year: '2018', title: 'First Regional Cup', desc: 'Won the first regional school tournament cup in Cirebon, establishing our name among school teams.', icon: '🏆' },
+      { year: '2020', title: 'Golden Stallions Rebrand', desc: 'Adopted the Golden Stallions identity and opened our premium indoor school basketball hall with professional facilities.', icon: '🎨' },
+      { year: '2023', title: 'DBL Cup Glory', desc: 'Captured the prestigious DBL regional school championship for the first time in an epic final match.', icon: '📈' },
+      { year: '2026', title: '5th National Crown', desc: 'Completed an undefeated season, securing our 5th championship cup and cementing the school\'s sports legacy.', icon: '👑' }
     ],
     id: [
-      { year: '1998', title: 'Kelahiran Arena', desc: 'Klub Bola Basket BSQ ALL-FIVE didirikan di Metropolis, membangun kamp pelatihan canggih.', icon: '🏢' },
-      { year: '2005', title: 'Babak Playoff Pertama', desc: 'Dipimpin oleh pelatih Hall of Fame Larry Croft, tim mencapai Final Konferensi pertama mereka.', icon: '📈' },
-      { year: '2012', title: 'Dinasti Emas', desc: 'BSQ ALL-FIVE mengklaim Trofi Kejuaraan Emas pertamanya dalam seri final 7 pertandingan yang mendebarkan.', icon: '🏆' },
-      { year: '2020', title: 'Rebranding Blackout', desc: 'Mengadopsi estetika hitam pekat dan oranye premium modern, meluncurkan komunitas penggemar digital.', icon: '🎨' },
-      { year: '2025', title: 'Mahkota Berturut-turut', desc: 'Menutup babak playoff tanpa terkalahkan untuk mengangkat kejuaraan kelima, memperkuat dinasti kami.', icon: '👑' }
+      { year: '2015', title: 'Era Pendirian', desc: 'Tim basket BSQ didirikan di bawah program olahraga sekolah Al Hikmah Cirebon, dimulai dari lapangan luar ruangan sederhana.', icon: '🏫' },
+      { year: '2018', title: 'Piala Regional Pertama', desc: 'Memenangkan piala kejuaraan sekolah regional pertama di Cirebon, menancapkan nama kami di antara tim sekolah lainnya.', icon: '🏆' },
+      { year: '2020', title: 'Rebranding Golden Stallions', desc: 'Mengadopsi identitas Golden Stallions (Kuda Emas) dan meresmikan aula basket sekolah dalam ruangan dengan fasilitas premium.', icon: '🎨' },
+      { year: '2023', title: 'Kejayaan Piala DBL', desc: 'Meraih piala bergengsi DBL regional antar-sekolah untuk pertama kalinya dalam pertandingan final yang epik.', icon: '📈' },
+      { year: '2026', title: 'Gelar Nasional Ke-5', desc: 'Menutup musim tanpa kekalahan, mengamankan trofi kejuaraan ke-5 berturut-turut dan memperkuat warisan olahraga sekolah.', icon: '👑' }
     ],
     ar: [
-      { year: '1998', title: 'تأسيس الساحة', desc: 'تأسس نادي BSQ ALL-FIVE لكرة السلة في ميتروبوليس، وتم بناء معسكر تدريب متطور للغاية.', icon: '🏢' },
-      { year: '2005', title: 'أولى الأدوار الإقصائية', desc: 'بقيادة المدرب لاري كروفت، وصل الفريق إلى نهائيات المؤتمر لأول مرة في تاريخه.', icon: '📈' },
-      { year: '2012', title: 'السلالة الذهبية', desc: 'حققت BSQ ALL-FIVE أول كأس بطولة ذهبية لها في سلسلة نهائيات مثيرة من 7 مباريات.', icon: '🏆' },
-      { year: '2020', title: 'إعادة العلامة التجارية', desc: 'اعتماد اللون الأسود الداكن والبرتقالي النخبوية الحديثة وإطلاق مجتمع المشجعين الرقمي.', icon: '🎨' },
-      { year: '2025', title: 'التيجان المتتالية', desc: 'حققنا مسيرة خالية من الهزائم في الأدوار الإقصائية لنرفع البطولة الخامسة ونرسخ سلالتنا.', icon: '👑' }
+      { year: '2015', title: 'عصر التأسيس', desc: 'تأسس فريق BSQ لكرة السلة تحت رعاية برنامج الرياضة المدرسية بمدرسة الحكمة في سيريبون، بدءاً بملعب خارجي بسيط.', icon: '🏫' },
+      { year: '2018', title: 'الكأس الإقليمية الأولى', desc: 'الفوز بأول كأس بطولة مدرسية إقليمية في سيريبون، مما رسخ اسمنا بين الفرق المدرسية.', icon: '🏆' },
+      { year: '2020', title: 'إعادة تسمية الخيول الذهبية', desc: 'اعتماد هوية خيول الحكمة الذهبية (Golden Stallions) وافتتاح صالة كرة السلة المغلقة بالمدرسة بمرافق ممتازة.', icon: '🎨' },
+      { year: '2023', title: 'مجد كأس DBL المدرسية', desc: 'حصد بطولة DBL المدرسية المرموقة على مستوى الإقليم للمرة الأولى في مباراة نهائية ملحمية.', icon: '📈' },
+      { year: '2026', title: 'التاج الوطني الخامس', desc: 'إكمال موسم خالي من الهزائم، وتأمين كأس البطولة الخامس على التوالي وترسيخ الإرث الرياضي للمدرسة.', icon: '👑' }
     ]
   };
   return data[lang as keyof typeof data] || data['en'];
@@ -84,7 +86,70 @@ export const Storytelling: React.FC = () => {
   const { language } = useAppStore();
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
-  const milestones = getMilestones(language);
+  
+  const [milestones, setMilestones] = useState<Milestone[]>(getMilestones(language));
+
+  useEffect(() => {
+    const fetchMilestones = () => {
+      db.from('milestones')
+        .select('*')
+        .order('year', { ascending: true })
+        .then(({ data }: any) => {
+          if (data) {
+            setMilestones(data);
+          }
+        });
+    };
+
+    fetchMilestones();
+
+    window.addEventListener('bsq_milestones_updated', fetchMilestones);
+    return () => window.removeEventListener('bsq_milestones_updated', fetchMilestones);
+  }, [language]);
+
+  useEffect(() => {
+    if (activeMilestone >= milestones.length && milestones.length > 0) {
+      setActiveMilestone(0);
+    }
+  }, [milestones, activeMilestone]);
+
+  const [mvpsCount, setMvpsCount] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bsq_achievements_mvps");
+      return saved !== null ? Number(saved) : 8;
+    }
+    return 8;
+  });
+
+  const [ringsCount, setRingsCount] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bsq_achievements_rings");
+      return saved !== null ? Number(saved) : 5;
+    }
+    return 5;
+  });
+
+  const [winsCount, setWinsCount] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bsq_achievements_wins");
+      return saved !== null ? Number(saved) : 320;
+    }
+    return 320;
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      const savedMvps = localStorage.getItem("bsq_achievements_mvps");
+      const savedRings = localStorage.getItem("bsq_achievements_rings");
+      const savedWins = localStorage.getItem("bsq_achievements_wins");
+      if (savedMvps !== null) setMvpsCount(Number(savedMvps));
+      if (savedRings !== null) setRingsCount(Number(savedRings));
+      if (savedWins !== null) setWinsCount(Number(savedWins));
+    };
+
+    window.addEventListener("bsq_achievements_updated", handleUpdate);
+    return () => window.removeEventListener("bsq_achievements_updated", handleUpdate);
+  }, []);
 
   // Parallax for Championship Dreams
   const { scrollYProgress } = useScroll({
@@ -127,7 +192,7 @@ export const Storytelling: React.FC = () => {
             <Trophy3D type="trophy" className="h-[200px]" />
             <h3 className="text-xl font-title font-black uppercase text-brand-gold mt-4">{t('story', 'mvps')}</h3>
             <div className="text-4xl font-title font-black mt-2 text-white">
-              <AnimatedCounter value={8} />
+              <AnimatedCounter value={mvpsCount} />
             </div>
             <p className="text-xs text-gray-500 mt-2 max-w-xs">
               {t('story', 'mvpDesc')}
@@ -142,7 +207,7 @@ export const Storytelling: React.FC = () => {
             <Trophy3D type="ring" className="h-[220px]" />
             <h3 className="text-2xl font-title font-black uppercase text-brand-orange mt-4">{t('story', 'rings')}</h3>
             <div className="text-5xl font-title font-black mt-2 text-white">
-              <AnimatedCounter value={5} />
+              <AnimatedCounter value={ringsCount} />
             </div>
             <p className="text-xs text-gray-400 mt-2 max-w-xs">
               {t('story', 'ringDesc')}
@@ -154,7 +219,7 @@ export const Storytelling: React.FC = () => {
             <Trophy3D type="trophy" className="h-[200px]" />
             <h3 className="text-xl font-title font-black uppercase text-brand-gold mt-4">{t('story', 'wins')}</h3>
             <div className="text-4xl font-title font-black mt-2 text-white">
-              <AnimatedCounter value={320} />
+              <AnimatedCounter value={winsCount} />
             </div>
             <p className="text-xs text-gray-500 mt-2 max-w-xs">
               {t('story', 'winsDesc')}
@@ -199,13 +264,13 @@ export const Storytelling: React.FC = () => {
                   transition={{ duration: 0.3 }}
                 >
                   <span className="text-5xl font-title font-black text-brand-orange block mb-2">
-                    {milestones[activeMilestone].year}
+                    {milestones[activeMilestone]?.year}
                   </span>
                   <h4 className={`text-xl font-bold font-display text-white mb-2 flex items-center justify-center lg:justify-start gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <span>{milestones[activeMilestone].icon}</span> {milestones[activeMilestone].title}
+                    <span>{milestones[activeMilestone]?.icon}</span> {milestones[activeMilestone]?.title}
                   </h4>
                   <p className="text-sm text-gray-400 leading-relaxed font-semibold">
-                    {milestones[activeMilestone].desc}
+                    {milestones[activeMilestone]?.desc}
                   </p>
                 </motion.div>
               </AnimatePresence>
@@ -213,12 +278,12 @@ export const Storytelling: React.FC = () => {
           </div>
 
           {/* Interactive Horizontal Track */}
-          <div className={`w-full lg:w-2/3 flex flex-col md:flex-row items-center gap-4 bg-white/2 border border-white/5 p-6 rounded-3xl relative overflow-hidden ${isRtl ? 'flex-row-reverse' : ''}`}>
+          <div className={`w-full lg:w-2/3 flex overflow-x-auto gap-4 bg-white/2 border border-white/5 p-6 rounded-3xl relative ${isRtl ? 'flex-row-reverse' : ''}`}>
             {milestones.map((item, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveMilestone(idx)}
-                className={`flex-1 w-full text-left p-6 rounded-2xl border transition-all duration-300 relative group cursor-pointer ${isRtl ? 'text-right' : ''} ${
+                className={`min-w-[220px] flex-shrink-0 text-left p-6 rounded-2xl border transition-all duration-300 relative group cursor-pointer ${isRtl ? 'text-right' : ''} ${
                   activeMilestone === idx
                     ? 'bg-brand-orange/15 border-brand-orange glow-orange'
                     : 'bg-white/3 border-white/10 hover:bg-white/5 hover:border-brand-orange/30'

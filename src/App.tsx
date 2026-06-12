@@ -3,14 +3,18 @@ import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Globe, Key } from 'lucide-react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './lib/firebase';
 import useAppStore from './lib/store';
 import { getTranslation } from './lib/i18n';
 
 // Importing Custom Sections
 import CustomCursor from './components/CustomCursor';
 import Hero from './components/Hero';
+import LogoScrollytelling from './components/LogoScrollytelling';
 import PlayerInfinitySlider from './components/PlayerInfinitySlider';
 import TacticalBoard from './components/TacticalBoard';
+import TacticScrollytelling from './components/TacticScrollytelling';
 import Storytelling from './components/Storytelling';
 import PlayerShowcase from './components/PlayerShowcase';
 import MatchCenter from './components/MatchCenter';
@@ -18,6 +22,9 @@ import FanCommunity from './components/FanCommunity';
 import TicketBooking from './components/TicketBooking';
 import MerchandiseStore from './components/MerchandiseStore';
 import AdminPortal from './components/AdminPortal';
+import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
+import AccountPage from './components/AccountPage';
 
 // Scroll To Top Component for smooth page transition resets
 function ScrollToTop() {
@@ -39,8 +46,10 @@ const HomePage = () => (
     transition={{ duration: 0.5 }}
   >
     <Hero />
+    <LogoScrollytelling />
     <PlayerInfinitySlider />
     <TacticalBoard />
+    <TacticScrollytelling />
     <Storytelling />
   </motion.div>
 );
@@ -90,8 +99,34 @@ const ShopPage = () => (
   </motion.div>
 );
 
+const ProfilePage = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 15 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    <AccountPage />
+  </motion.div>
+);
+
 function App() {
-  const { cart, isCartOpen, setCartOpen, toasts, removeToast, fan, language, setLanguage } = useAppStore();
+  const cart = useAppStore(state => state.cart);
+  const isCartOpen = useAppStore(state => state.isCartOpen);
+  const setCartOpen = useAppStore(state => state.setCartOpen);
+  const fan = useAppStore(state => state.fan);
+  const firebaseUser = useAppStore(state => state.firebaseUser);
+  const setFirebaseUser = useAppStore(state => state.setFirebaseUser);
+  const language = useAppStore(state => state.language);
+  const setLanguage = useAppStore(state => state.setLanguage);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsubscribe();
+  }, [setFirebaseUser]);
+
   const [scrolled, setScrolled] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const location = useLocation();
@@ -146,12 +181,17 @@ function App() {
           
           {/* Brand Logo */}
           <NavLink to="/" className={`flex items-center gap-3 group select-none ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
-            <div className="w-10 h-10 rounded-xl bg-brand-orange border border-brand-burnt/30 flex items-center justify-center text-brand-black font-title font-black text-xl shadow-lg shadow-brand-orange/30 group-hover:scale-105 transition-transform">
-              B
+            <div className="relative w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-lg shadow-brand-orange/10 group-hover:shadow-brand-orange/30 group-hover:border-brand-orange/40 group-hover:scale-105 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-tr from-brand-orange/20 to-brand-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <img 
+                src="/logo.png" 
+                alt="BSQ Cirebon Logo" 
+                className="w-full h-full object-contain p-1 group-hover:rotate-6 transition-transform duration-500" 
+              />
             </div>
             <div>
               <span className="text-sm font-black text-white tracking-widest uppercase block leading-none">{t('hero', 'title')}</span>
-              <span className="text-[9px] font-bold text-brand-gold tracking-[0.2em] uppercase mt-1 block">HOOPS CLUB</span>
+              <span className="text-[9px] font-bold text-brand-gold tracking-[0.2em] uppercase mt-1 block">AL HIKMAH CIREBON</span>
             </div>
           </NavLink>
           
@@ -206,15 +246,19 @@ function App() {
               </div>
             </div>
 
-            {/* Club member badge */}
-            <div className={`hidden sm:flex items-center gap-2 bg-white/2 border border-white/10 px-3 py-1.5 rounded-xl ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className="w-5 h-5 rounded bg-brand-orange/20 flex items-center justify-center text-brand-orange text-xs">
-                ⭐
+            {/* Club member badge / Account Link */}
+            <NavLink to="/account" className={`hidden sm:flex items-center gap-2 bg-white/2 hover:bg-brand-orange/15 hover:border-brand-orange/30 border border-white/10 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className="w-5 h-5 rounded overflow-hidden bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-xs">
+                {firebaseUser ? (
+                  <img src={fan.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  '⭐'
+                )}
               </div>
               <span className="text-[10px] font-bold font-display uppercase tracking-wider text-gray-300">
-                {t('fan', 'level')} {fan.level}
+                {firebaseUser ? fan.username : t('fan', 'level') + ' ' + fan.level}
               </span>
-            </div>
+            </NavLink>
 
             {/* Shopping Bag Button */}
             <button
@@ -242,6 +286,7 @@ function App() {
             <Route path="/matches" element={<MatchesPage />} />
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/shop" element={<ShopPage />} />
+            <Route path="/account" element={<ProfilePage />} />
           </Routes>
         </AnimatePresence>
       </main>
@@ -250,7 +295,9 @@ function App() {
       <footer className="bg-bg-darker border-t border-white/5 py-12 px-6 font-display">
         <div className={`max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-gray-500 ${isRtl ? 'md:flex-row-reverse text-right' : ''}`}>
           <div className={`flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <span className="w-8 h-8 rounded-lg bg-brand-orange/25 border border-brand-orange/30 flex items-center justify-center text-brand-orange font-title font-black text-sm">B</span>
+            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="BSQ Cirebon Logo" className="w-full h-full object-contain p-0.5" />
+            </div>
             <span>© 2026 BSQ ALL-FIVE Basketball Club. All Rights Reserved.</span>
           </div>
           <div className={`flex gap-6 ${isRtl ? 'flex-row-reverse' : ''}`}>
@@ -266,41 +313,12 @@ function App() {
       </footer>
 
       {/* 12. Floating Toast alerts center */}
-      <div className={`fixed top-24 ${isRtl ? 'left-6' : 'right-6'} z-[3000] w-full max-w-sm space-y-3 pointer-events-none`}>
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, x: isRtl ? -50 : 50, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: isRtl ? -50 : 50, scale: 0.9 }}
-              className={`p-4 rounded-2xl shadow-xl flex items-start gap-3 border pointer-events-auto backdrop-blur-md ${isRtl ? 'flex-row-reverse text-right' : 'text-left'} ${
-                toast.type === 'success'
-                  ? 'bg-green-950/80 border-green-700/30 text-green-100 shadow-green-950/20'
-                  : toast.type === 'xp'
-                  ? 'bg-brand-orange/90 border-brand-burnt/35 text-brand-black shadow-brand-orange/15 font-black'
-                  : toast.type === 'warning'
-                  ? 'bg-red-950/80 border-red-700/30 text-red-100'
-                  : 'bg-bg-card/90 border-brand-orange/20 text-white glow-orange'
-              }`}
-            >
-              <div className="flex-1">
-                <h5 className="text-xs font-bold font-title uppercase tracking-wide">{toast.title}</h5>
-                <p className="text-[10px] opacity-80 mt-1 font-display font-medium">{toast.message}</p>
-              </div>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="text-gray-400 hover:text-white p-0.5 rounded cursor-pointer"
-              >
-                <X size={12} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      <ToastContainer />
 
       {/* Admin Panel Modal Overlay */}
-      <AdminPortal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      <ErrorBoundary>
+        <AdminPortal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      </ErrorBoundary>
 
     </div>
   );

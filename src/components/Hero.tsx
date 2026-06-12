@@ -99,51 +99,70 @@ export const Hero: React.FC = () => {
     <div
       ref={containerRef}
       className="relative w-full h-screen bg-bg-darker overflow-hidden flex items-center justify-center border-b border-brand-orange/5"
-      style={{ perspective: '1000px' }}
+      style={{ 
+        perspective: '1000px',
+        backgroundImage: 'radial-gradient(rgba(255,90,0,0.025) 15%, transparent 20%)',
+        backgroundSize: '10px 10px'
+      }}
     >
       {/* LAYER 1: Arena Background (Parallax) */}
       <motion.div
         style={{ y: yBg, opacity: opacityFade }}
         className="absolute inset-0 z-0 bg-cover bg-center select-none pointer-events-none"
       >
-        <div className="absolute inset-0 bg-black/60 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/70 to-transparent z-10" />
         <img
-          src="https://images.unsplash.com/photo-1519766304817-4f37bda74a27?auto=format&fit=crop&q=80&w=1920"
-          alt="Arena Spotlight Backdrop"
-          className="w-full h-full object-cover opacity-35 filter brightness-50"
+          src="https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=1920"
+          alt="Basketball Court Arena Spotlight"
+          className="w-full h-full object-cover opacity-30 filter grayscale mix-blend-overlay"
         />
-        {/* Arena Spotlights (Simulated via gradients) */}
-        <div className="absolute top-0 left-1/4 w-[20vw] h-[80vh] bg-gradient-to-b from-brand-orange/20 to-transparent blur-[120px] transform -rotate-12" />
-        <div className="absolute top-0 right-1/4 w-[25vw] h-[90vh] bg-gradient-to-b from-brand-burnt/15 to-transparent blur-[140px] transform rotate-12" />
+        <div className="absolute top-0 left-1/4 w-[25vw] h-[80vh] bg-gradient-to-b from-brand-orange/10 to-transparent transform -rotate-12" />
+        <div className="absolute top-0 right-1/4 w-[30vw] h-[90vh] bg-gradient-to-b from-brand-burnt/10 to-transparent transform rotate-12" />
       </motion.div>
 
-      {/* LAYER 2: Smoke Overlay (Parallax) */}
-      <motion.div
-        style={{ y: ySmoke, opacity: opacityFade }}
-        className="absolute inset-0 z-[1] select-none pointer-events-none"
-      >
-        {/* Floating clouds/smoke blobs */}
-        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[50%] bg-gradient-radial from-brand-orange/10 to-transparent blur-[80px] animate-pulse duration-[6s]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[60%] bg-gradient-radial from-brand-red/10 to-transparent blur-[100px] animate-pulse duration-[8s]" />
-      </motion.div>
 
-      {/* LAYER 3: Players Silhouettes (Parallax) */}
-      <motion.div
-        style={{ y: yPlayers, opacity: opacityFade }}
-        className="absolute bottom-0 inset-x-0 h-[60%] z-[2] select-none pointer-events-none flex items-end justify-center"
-      >
-        {/* Gradient backdrop to blend players */}
-        <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-bg-darker to-transparent z-10" />
-        
-        {/* Vector-like glow layers of basketball players */}
-        <div className="w-[1200px] max-w-full flex justify-between px-10 md:px-32 opacity-20 filter blur-xs">
-          <div className="w-40 h-[280px] bg-brand-orange/25 rounded-t-full transform rotate-3" />
-          <div className="w-48 h-[380px] bg-brand-burnt/30 rounded-t-full transform -rotate-2" />
-          <div className="w-56 h-[460px] bg-brand-orange/35 rounded-t-full" />
-          <div className="w-48 h-[360px] bg-brand-burnt/30 rounded-t-full transform rotate-3" />
-          <div className="w-40 h-[250px] bg-brand-orange/25 rounded-t-full transform -rotate-6" />
-        </div>
-      </motion.div>
+
+      {/* Glowing Neon Basketball Hoop in background */}
+      <div className={`absolute top-[12%] ${isRtl ? 'left-[8%]' : 'right-[8%]'} z-[1] opacity-25 select-none pointer-events-none`}>
+        <svg viewBox="0 0 100 100" className="w-48 h-48 stroke-brand-orange/60 fill-none stroke-[1.5] filter drop-shadow-[0_0_12px_rgba(255,90,0,0.4)]">
+          {/* Backboard */}
+          <rect x="5" y="10" width="90" height="55" rx="3" />
+          <rect x="25" y="25" width="50" height="40" />
+          {/* Rim */}
+          <ellipse cx="50" cy="65" rx="16" ry="5" className="stroke-brand-orange" />
+          {/* Net */}
+          <path d="M34 65 L40 90 L50 98 L60 90 L66 65 M40 65 L45 90 L55 90 L60 65 M50 65 L50 98 M42 75 L58 75 M46 85 L54 85" className="stroke-brand-orange/40" />
+        </svg>
+      </div>
+
+      {/* Glowing Neon Basketball Court Lines (Bottom floor underlay in 3D perspective) */}
+      <div className="absolute bottom-0 inset-x-0 h-[28vh] z-[1] pointer-events-none overflow-hidden opacity-30 select-none">
+        <svg 
+          viewBox="0 0 1000 300" 
+          className="w-full h-full stroke-brand-orange/40 fill-none stroke-[2.5] filter drop-shadow-[0_0_10px_rgba(255,90,0,0.5)]"
+          style={{ transform: 'perspective(180px) rotateX(62deg) scale(1.45)', transformOrigin: 'bottom center' }}
+        >
+          {/* Outer Boundary */}
+          <rect x="50" y="-120" width="900" height="420" />
+          {/* Mid-court line */}
+          <line x1="500" y1="-120" x2="500" y2="300" />
+          {/* Center Circle */}
+          <circle cx="500" cy="90" r="100" />
+          <circle cx="500" cy="90" r="25" />
+          {/* Three-point line Left */}
+          <path d="M 50,-120 A 250,250 0 0,0 300,130 L 300,300" />
+          {/* Three-point line Right */}
+          <path d="M 950,-120 A 250,250 0 0,1 700,130 L 700,300" />
+          {/* Key Left */}
+          <rect x="50" y="40" width="180" height="100" />
+          <path d="M 230,40 A 50,50 0 0,1 230,140 Z" />
+          {/* Key Right */}
+          <rect x="770" y="40" width="180" height="100" />
+          <path d="M 770,40 A 50,50 0 0,0 770,140 Z" />
+        </svg>
+      </div>
+
+
 
       {/* LAYER 4: 3D Basketball (Parallax) */}
       <motion.div
@@ -166,34 +185,48 @@ export const Hero: React.FC = () => {
         <div className={`w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 items-center ${isRtl ? 'lg:flex-row-reverse text-right' : 'text-left'}`}>
           <div className={`lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left ${isRtl ? 'lg:items-end lg:text-right' : ''}`}>
             {/* Logo Badge */}
-            <div ref={logoRef} className={`opacity-0 mb-6 flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-              <span className="w-10 h-10 rounded-xl bg-brand-orange flex items-center justify-center text-brand-black font-title font-black text-xl shadow-lg shadow-brand-orange/40">B</span>
-              <span className="text-xs font-display tracking-[0.3em] font-extrabold uppercase text-brand-gold">BSQ ALL-FIVE</span>
+            <div ref={logoRef} className={`opacity-0 mb-6 flex items-center gap-4 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className="relative w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-xl shadow-brand-orange/20 backdrop-blur-md">
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-orange/30 to-brand-gold/20 opacity-80" />
+                <img 
+                  src="/logo.png" 
+                  alt="BSQ Cirebon Logo" 
+                  className="w-full h-full object-contain p-1.5 z-10 relative opacity-90" 
+                />
+              </div>
+              <div className={`flex flex-col ${isRtl ? 'items-end text-right' : 'items-start text-left'}`}>
+                <span className="text-sm font-display tracking-[0.35em] font-black uppercase text-white leading-none">BSQ ALL-FIVE</span>
+                <span className="text-[10px] font-display tracking-[0.2em] font-bold uppercase text-brand-gold mt-1.5">Al Hikmah Cirebon</span>
+              </div>
             </div>
 
             {/* Letter-by-Letter Franchise Title */}
             <h1
               ref={titleRef}
-              className={`text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-title font-black uppercase tracking-tight text-white leading-[0.85] flex flex-wrap justify-center lg:justify-start ${isRtl ? 'flex-row-reverse justify-end' : ''}`}
+              className={`text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-title font-black uppercase tracking-tight text-white leading-[0.85] flex flex-wrap justify-center lg:justify-start gap-y-2 gap-x-[0.2em] ${isRtl ? 'flex-row-reverse justify-end' : ''}`}
             >
-              {t('hero', 'title').split("").map((letter, idx) => (
-                <span
-                  key={idx}
-                  className="letter inline-block transform origin-bottom text-glow-orange filter drop-shadow-[0_0_15px_rgba(255,90,0,0.5)]"
-                >
-                  {letter}
+              {t('hero', 'title').split(" ").map((word, wordIdx) => (
+                <span key={wordIdx} className="whitespace-nowrap inline-flex">
+                  {word.split("").map((letter, idx) => (
+                    <span
+                      key={idx}
+                      className="letter inline-block transform origin-bottom bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-500 drop-shadow-sm"
+                    >
+                      {letter}
+                    </span>
+                  ))}
                 </span>
               ))}
             </h1>
 
             {/* Cinematic Slogan */}
-            <div ref={textRef} className={`opacity-0 mt-6 max-w-md ${isRtl ? 'text-right' : 'text-left'}`}>
-              <p className="text-gray-300 font-display text-sm md:text-base leading-relaxed font-semibold">
+            <div ref={textRef} className={`opacity-0 mt-8 max-w-lg ${isRtl ? 'text-right' : 'text-left'}`}>
+              <p className="text-gray-300 font-display uppercase text-xs sm:text-sm md:text-base tracking-[0.4em] font-light mb-6 opacity-80">
                 {t('hero', 'slogan')}
               </p>
-              <div className={`flex gap-6 mt-4 justify-center lg:justify-start text-xs font-display tracking-widest text-brand-gold ${isRtl ? 'flex-row-reverse justify-end' : ''}`}>
-                <span className="flex items-center gap-1.5"><Trophy size={14} /> {t('hero', 'champions')}</span>
-                <span className="flex items-center gap-1.5"><Zap size={14} /> {t('hero', 'liveMatch')}</span>
+              <div className={`flex gap-8 mt-2 justify-center lg:justify-start text-[10px] font-display tracking-[0.2em] text-gray-500 uppercase ${isRtl ? 'flex-row-reverse justify-end' : ''}`}>
+                <span className="flex items-center gap-2"><Trophy size={12} className="text-brand-gold opacity-70" /> {t('hero', 'champions')}</span>
+                <span className="flex items-center gap-2"><Zap size={12} className="text-brand-orange opacity-70" /> {t('hero', 'liveMatch')}</span>
               </div>
             </div>
 
@@ -204,14 +237,14 @@ export const Hero: React.FC = () => {
                 onMouseMove={handleMagneticMove}
                 onMouseLeave={handleMagneticLeave}
                 onClick={() => navigate('/matches')}
-                className="px-8 py-4 bg-brand-orange hover:bg-brand-burnt text-brand-black font-display font-black text-xs tracking-[0.2em] uppercase rounded-xl transition-colors shadow-lg shadow-brand-orange/20 cursor-pointer w-full sm:w-auto text-center"
+                className="relative px-10 py-4 bg-white text-brand-black hover:bg-gray-200 font-display font-semibold text-[10px] tracking-[0.25em] uppercase transition-all duration-300 cursor-pointer w-full sm:w-auto text-center"
               >
-                {t('hero', 'matchesBtn')}
+                <span className="relative z-10">{t('hero', 'matchesBtn')}</span>
               </button>
               
               <button
                 onClick={() => navigate('/tickets')}
-                className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white font-display font-black text-xs tracking-[0.2em] uppercase rounded-xl border border-white/10 hover:border-brand-orange/30 transition-all cursor-pointer w-full sm:w-auto text-center"
+                className="px-10 py-4 bg-transparent border border-gray-600 hover:border-white text-gray-300 hover:text-white font-display font-semibold text-[10px] tracking-[0.25em] uppercase transition-all duration-300 cursor-pointer w-full sm:w-auto text-center"
               >
                 {t('hero', 'ticketsBtn')}
               </button>

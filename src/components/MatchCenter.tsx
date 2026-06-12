@@ -16,16 +16,48 @@ export const MatchCenter: React.FC = () => {
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
 
-  useEffect(() => {
-    // Fetch initial matches
-    (db as any).from('matches').select('*').order('date', { ascending: true }).then(({ data }: any) => {
-      if (data) setMatches(data as Match[]);
-    });
+  const [tournamentName, setTournamentName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bsq_active_tournament');
+      if (saved) return saved;
+    }
+    return language === 'ar' ? 'ترتيب البطولة' : language === 'id' ? 'Klasemen Turnamen' : 'Tournament Standings';
+  });
 
-    // Fetch standings
-    (db as any).from('standings').select('*').order('points', { ascending: false }).then(({ data }: any) => {
-      if (data) setStandings(data as Standing[]);
-    });
+  useEffect(() => {
+    const handleUpdate = () => {
+      setTournamentName(localStorage.getItem('bsq_active_tournament') || 'Tournament Standings');
+    };
+    window.addEventListener('bsq_active_tournament_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('bsq_active_tournament_updated', handleUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('bsq_active_tournament')) {
+      setTournamentName(language === 'ar' ? 'ترتيب البطولة' : language === 'id' ? 'Klasemen Turnamen' : 'Tournament Standings');
+    }
+  }, [language]);
+
+  useEffect(() => {
+    const fetchMatches = () => {
+      (db as any).from('matches').select('*').order('date', { ascending: true }).then(({ data }: any) => {
+        if (data) setMatches(data as Match[]);
+      });
+    };
+
+    const fetchStandings = () => {
+      (db as any).from('standings').select('*').order('points', { ascending: false }).then(({ data }: any) => {
+        if (data) setStandings(data as Standing[]);
+      });
+    };
+
+    fetchMatches();
+    fetchStandings();
+
+    window.addEventListener('bsq_matches_updated', fetchMatches);
+    window.addEventListener('bsq_standings_updated', fetchStandings);
 
     // Subscribe to simulated Live match score updates!
     const channel = (db as any).channel('matches:UPDATE')
@@ -48,7 +80,9 @@ export const MatchCenter: React.FC = () => {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      channel?.unsubscribe?.();
+      window.removeEventListener('bsq_matches_updated', fetchMatches);
+      window.removeEventListener('bsq_standings_updated', fetchStandings);
     };
   }, [addToast]);
 
@@ -179,8 +213,8 @@ export const MatchCenter: React.FC = () => {
                       <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center">
                         <img src={match.opponent_logo} alt={match.opponent} className="w-full h-full object-cover filter brightness-75" />
                       </div>
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left hidden sm:inline text-white">{match.opponent}</span>
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left sm:hidden text-white">{match.opponent.slice(0,3).toUpperCase()}</span>
+                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left hidden sm:inline text-white">{match.opponent || 'Unknown'}</span>
+                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left sm:hidden text-white">{(match.opponent || 'UNK').slice(0,3).toUpperCase()}</span>
                     </div>
 
                   </div>
@@ -217,9 +251,21 @@ export const MatchCenter: React.FC = () => {
                 </motion.div>
               ))}
               {filteredMatches.length === 0 && (
-                <div className="text-center py-12 glass-panel border-white/5 rounded-3xl text-gray-500">
-                  No matches found for this filter.
-                </div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center py-16 px-6 glass-panel border-white/5 rounded-3xl text-gray-500 text-center"
+                >
+                  <Calendar size={48} className="mb-4 opacity-50 text-brand-orange" />
+                  <h3 className="text-xl font-title font-black uppercase text-white mb-2">
+                    {language === 'id' ? 'Jadwal Kosong' : 'No Matches Scheduled'}
+                  </h3>
+                  <p className="text-xs font-display">
+                    {language === 'id' 
+                      ? 'Belum ada pertandingan yang dijadwalkan untuk kategori ini.' 
+                      : 'There are currently no matchups scheduled for this category.'}
+                  </p>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -230,7 +276,7 @@ export const MatchCenter: React.FC = () => {
           <div className={`mb-8 ${isRtl ? 'text-right' : 'text-left'}`}>
             <span className="text-brand-gold font-display text-sm font-semibold tracking-[0.25em] uppercase block mb-1">Rankings</span>
             <h2 className={`text-3xl font-title font-extrabold uppercase text-white flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-              <Trophy size={22} className="text-brand-gold" /> {t('matches', 'standingsTitle')}
+              <Trophy size={22} className="text-brand-gold" /> {tournamentName}
             </h2>
           </div>
 
@@ -276,6 +322,13 @@ export const MatchCenter: React.FC = () => {
                       </tr>
                     );
                   })}
+                  {standings.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-gray-500 font-display text-xs">
+                        {language === 'id' ? 'Klasemen masih kosong.' : 'Standings are currently empty.'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
