@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800;900&family=Syne:wght@700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-title: 'Syne', sans-serif;
+
+  --color-brand-black: #080808;
+  --color-brand-orange: #FF5A00;
+  --color-brand-burnt: #FF7A00;
+  --color-brand-red: #8B0000;
+  --color-brand-gold: #D4AF37;
+  
+  --color-bg-darker: #040404;
+  --color-bg-dark: #080808;
+  --color-bg-card: #121212;
+  --color-bg-card-hover: #1c1c1c;
+}
+
+html, body {
+  background-color: #080808;
+  color: #f3f4f6;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Hide default cursor on desktop */
+@media (min-width: 1024px) {
+  body {
+    cursor: none;
+  }
+  a, button, select, input, textarea, [role="button"] {
+    cursor: none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c1c1c;
+  border-radius: 4px;
+  border: 1px solid #222;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF5A00;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(18, 18, 18, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 90, 0, 0.1);
+}
+
+.glass-panel-heavy {
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 90, 0, 0.15);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 10px rgba(255, 90, 0, 0.6), 0 0 20px rgba(255, 90, 0, 0.3);
+}
+
+.text-glow-gold {
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.2);
+}
+
+.glow-orange {
+  box-shadow: 0 0 20px rgba(255, 90, 0, 0.2);
+}
+
+.glow-orange-lg {
+  box-shadow: 0 0 40px rgba(255, 90, 0, 0.4);
+}
+
+.glow-gold {
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+}
+
+canvas {
+  outline: none;
+}
+
+/* Text reveal mask animation helper */
+.clip-text-reveal {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
