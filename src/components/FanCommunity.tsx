@@ -167,7 +167,7 @@ export const FanCommunity: React.FC = () => {
         <div className="lg:col-span-5 flex flex-col gap-8">
           
           {/* Fan Dashboard Profile (Simplified) */}
-          <div className="glass-panel-heavy rounded-3xl p-8 border border-white/5 relative overflow-hidden flex flex-col justify-between h-full min-h-[300px]">
+          <div className="glass-panel-heavy rounded-3xl p-8 border border-white/5 relative overflow-hidden flex flex-col justify-between min-h-[300px] flex-shrink-0">
             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
             
             <div>
@@ -209,7 +209,7 @@ export const FanCommunity: React.FC = () => {
           </div>
 
           {/* Match Predictor Card */}
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden">
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden flex-shrink-0">
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={18} className="text-brand-orange" />
               <h4 className="font-title font-extrabold uppercase text-white text-start">{t('fan', 'scorePredictor')}</h4>
