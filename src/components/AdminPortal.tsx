@@ -1277,7 +1277,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       onClick={() => {
                         setSelectedRole("admin");
                         setPassError(false);
-                        setPasscode("");
+                        setPassword("");
                       }}
                       className={`w-full p-4 bg-white/2 hover:bg-white/5 border border-white/5 hover:border-brand-orange/30 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer ${
                         isRtl ? "flex-row-reverse text-right" : "text-left"
@@ -1301,7 +1301,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       onClick={() => {
                         setSelectedRole("coach");
                         setPassError(false);
-                        setPasscode("");
+                        setPassword("");
                       }}
                       className={`w-full p-4 bg-white/2 hover:bg-white/5 border border-white/5 hover:border-brand-orange/30 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer ${
                         isRtl ? "flex-row-reverse text-right" : "text-left"
@@ -1325,7 +1325,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       onClick={() => {
                         setSelectedRole("shop_manager");
                         setPassError(false);
-                        setPasscode("");
+                        setPassword("");
                       }}
                       className={`w-full p-4 bg-white/2 hover:bg-white/5 border border-white/5 hover:border-brand-orange/30 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer ${
                         isRtl ? "flex-row-reverse text-right" : "text-left"
@@ -1532,7 +1532,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     ? ["matches", "roster", "store", "standings", "story", "bookings", "active_users"]
                     : authenticatedRole === "coach"
                       ? ["matches", "roster"]
-                      : ["store"]) as const
+                      : ["store"]) as ("matches" | "standings" | "roster" | "story" | "store" | "bookings" | "active_users")[]
                 ).map((tab) => (
                   <button
                     key={tab}

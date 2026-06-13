@@ -14,25 +14,25 @@ gsap.registerPlugin(ScrollTrigger);
 const getMilestones = (lang: string) => {
   const data = {
     en: [
-      { year: '2015', title: 'Foundation Era', desc: 'BSQ basketball team is founded under the Al Hikmah school sports program in Cirebon, starting on a humble outdoor court.', icon: '🏫' },
-      { year: '2018', title: 'First Regional Cup', desc: 'Won the first regional school tournament cup in Cirebon, establishing our name among school teams.', icon: '🏆' },
-      { year: '2020', title: 'Golden Stallions Rebrand', desc: 'Adopted the Golden Stallions identity and opened our premium indoor school basketball hall with professional facilities.', icon: '🎨' },
-      { year: '2023', title: 'DBL Cup Glory', desc: 'Captured the prestigious DBL regional school championship for the first time in an epic final match.', icon: '📈' },
-      { year: '2026', title: '5th National Crown', desc: 'Completed an undefeated season, securing our 5th championship cup and cementing the school\'s sports legacy.', icon: '👑' }
+      { id: '1', year: '2015', title: 'Foundation Era', desc: 'BSQ basketball team is founded under the Al Hikmah school sports program in Cirebon, starting on a humble outdoor court.', icon: '🏫' },
+      { id: '2', year: '2018', title: 'First Regional Cup', desc: 'Won the first regional school tournament cup in Cirebon, establishing our name among school teams.', icon: '🏆' },
+      { id: '3', year: '2020', title: 'Golden Stallions Rebrand', desc: 'Adopted the Golden Stallions identity and opened our premium indoor school basketball hall with professional facilities.', icon: '🎨' },
+      { id: '4', year: '2023', title: 'DBL Cup Glory', desc: 'Captured the prestigious DBL regional school championship for the first time in an epic final match.', icon: '📈' },
+      { id: '5', year: '2026', title: '5th National Crown', desc: 'Completed an undefeated season, securing our 5th championship cup and cementing the school\'s sports legacy.', icon: '👑' }
     ],
     id: [
-      { year: '2015', title: 'Era Pendirian', desc: 'Tim basket BSQ didirikan di bawah program olahraga sekolah Al Hikmah Cirebon, dimulai dari lapangan luar ruangan sederhana.', icon: '🏫' },
-      { year: '2018', title: 'Piala Regional Pertama', desc: 'Memenangkan piala kejuaraan sekolah regional pertama di Cirebon, menancapkan nama kami di antara tim sekolah lainnya.', icon: '🏆' },
-      { year: '2020', title: 'Rebranding Golden Stallions', desc: 'Mengadopsi identitas Golden Stallions (Kuda Emas) dan meresmikan aula basket sekolah dalam ruangan dengan fasilitas premium.', icon: '🎨' },
-      { year: '2023', title: 'Kejayaan Piala DBL', desc: 'Meraih piala bergengsi DBL regional antar-sekolah untuk pertama kalinya dalam pertandingan final yang epik.', icon: '📈' },
-      { year: '2026', title: 'Gelar Nasional Ke-5', desc: 'Menutup musim tanpa kekalahan, mengamankan trofi kejuaraan ke-5 berturut-turut dan memperkuat warisan olahraga sekolah.', icon: '👑' }
+      { id: '1', year: '2015', title: 'Era Pendirian', desc: 'Tim basket BSQ didirikan di bawah program olahraga sekolah Al Hikmah Cirebon, dimulai dari lapangan luar ruangan sederhana.', icon: '🏫' },
+      { id: '2', year: '2018', title: 'Piala Regional Pertama', desc: 'Memenangkan piala kejuaraan sekolah regional pertama di Cirebon, menancapkan nama kami di antara tim sekolah lainnya.', icon: '🏆' },
+      { id: '3', year: '2020', title: 'Rebranding Golden Stallions', desc: 'Mengadopsi identitas Golden Stallions (Kuda Emas) dan meresmikan aula basket sekolah dalam ruangan dengan fasilitas premium.', icon: '🎨' },
+      { id: '4', year: '2023', title: 'Kejayaan Piala DBL', desc: 'Meraih piala bergengsi DBL regional antar-sekolah untuk pertama kalinya dalam pertandingan final yang epik.', icon: '📈' },
+      { id: '5', year: '2026', title: 'Gelar Nasional Ke-5', desc: 'Menutup musim tanpa kekalahan, mengamankan trofi kejuaraan ke-5 berturut-turut dan memperkuat warisan olahraga sekolah.', icon: '👑' }
     ],
     ar: [
-      { year: '2015', title: 'عصر التأسيس', desc: 'تأسس فريق BSQ لكرة السلة تحت رعاية برنامج الرياضة المدرسية بمدرسة الحكمة في سيريبون، بدءاً بملعب خارجي بسيط.', icon: '🏫' },
-      { year: '2018', title: 'الكأس الإقليمية الأولى', desc: 'الفوز بأول كأس بطولة مدرسية إقليمية في سيريبون، مما رسخ اسمنا بين الفرق المدرسية.', icon: '🏆' },
-      { year: '2020', title: 'إعادة تسمية الخيول الذهبية', desc: 'اعتماد هوية خيول الحكمة الذهبية (Golden Stallions) وافتتاح صالة كرة السلة المغلقة بالمدرسة بمرافق ممتازة.', icon: '🎨' },
-      { year: '2023', title: 'مجد كأس DBL المدرسية', desc: 'حصد بطولة DBL المدرسية المرموقة على مستوى الإقليم للمرة الأولى في مباراة نهائية ملحمية.', icon: '📈' },
-      { year: '2026', title: 'التاج الوطني الخامس', desc: 'إكمال موسم خالي من الهزائم، وتأمين كأس البطولة الخامس على التوالي وترسيخ الإرث الرياضي للمدرسة.', icon: '👑' }
+      { id: '1', year: '2015', title: 'عصر التأسيس', desc: 'تأسس فريق BSQ لكرة السلة تحت رعاية برنامج الرياضة المدرسية بمدرسة الحكمة في سيريبون، بدءاً بملعب خارجي بسيط.', icon: '🏫' },
+      { id: '2', year: '2018', title: 'الكأس الإقليمية الأولى', desc: 'الفوز بأول كأس بطولة مدرسية إقليمية في سيريبون، مما رسخ اسمنا بين الفرق المدرسية.', icon: '🏆' },
+      { id: '3', year: '2020', title: 'إعادة تسمية الخيول الذهبية', desc: 'اعتماد هوية خيول الحكمة الذهبية (Golden Stallions) وافتتاح صالة كرة السلة المغلقة بالمدرسة بمرافق ممتازة.', icon: '🎨' },
+      { id: '4', year: '2023', title: 'مجد كأس DBL المدرسية', desc: 'حصد بطولة DBL المدرسية المرموقة على مستوى الإقليم للمرة الأولى في مباراة نهائية ملحمية.', icon: '📈' },
+      { id: '5', year: '2026', title: 'التاج الوطني الخامس', desc: 'إكمال موسم خالي من الهزائم، وتأمين كأس البطولة الخامس على التوالي وترسيخ الإرث الرياضي للمدرسة.', icon: '👑' }
     ]
   };
   return data[lang as keyof typeof data] || data['en'];

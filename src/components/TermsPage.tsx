@@ -7,7 +7,7 @@ import { getTranslation } from '../lib/i18n';
 export const TermsPage: React.FC = () => {
   const { language } = useAppStore();
   const isRtl = language === 'ar';
-  const t = (key: string) => getTranslation(language, `terms.${key}`);
+  const t = (key: string) => getTranslation(language, 'terms', key);
 
   const sections = [
     {

@@ -7,7 +7,7 @@ import { getTranslation } from '../lib/i18n';
 export const ContactPage: React.FC = () => {
   const { addToast, addXP, unlockBadge, language, firebaseUser } = useAppStore();
   const isRtl = language === 'ar';
-  const t = (key: string) => getTranslation(language, `contact.${key}`);
+  const t = (key: string) => getTranslation(language, 'contact', key);
 
   const [formData, setFormData] = useState({
     name: '',

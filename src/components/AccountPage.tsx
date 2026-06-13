@@ -52,7 +52,7 @@ export const AccountPage: React.FC = () => {
               try {
                 await loginWithGoogle();
               } catch (e: any) {
-                addToast('error', 'Login Failed', e.message || 'Unable to login with Google.');
+                addToast('warning', 'Login Failed', e.message || 'Unable to login with Google.');
               }
             }}
             className="w-full p-4 bg-brand-orange hover:bg-brand-burnt text-brand-black rounded-xl font-display font-black tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 cursor-pointer mb-2"
@@ -127,7 +127,7 @@ export const AccountPage: React.FC = () => {
                       await logout();
                     }
                   } catch (e) {
-                    addToast('error', 'Logout Failed', 'Unable to logout.');
+                    addToast('warning', 'Logout Failed', 'Unable to logout.');
                   }
                 }}
                 className="px-4 py-2 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-500 rounded-xl border border-white/10 transition-all text-xs font-display flex items-center gap-2 cursor-pointer shadow-lg"
