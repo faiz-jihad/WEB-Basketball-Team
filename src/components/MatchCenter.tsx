@@ -161,7 +161,13 @@ export const MatchCenter: React.FC = () => {
                         <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">FINAL</span>
                       ) : (
                         <span className="text-[10px] font-bold tracking-widest text-brand-gold uppercase flex items-center gap-1.5">
-                          <Calendar size={12} /> UPCOMING GAME
+                          <Calendar size={12} />
+                          {(() => {
+                            const d = new Date(match.date);
+                            return isNaN(d.getTime()) 
+                              ? 'UPCOMING GAME' 
+                              : `UPCOMING • ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}`;
+                          })()}
                         </span>
                       )}
                     </div>
@@ -171,44 +177,39 @@ export const MatchCenter: React.FC = () => {
                   </div>
 
                   {/* Teams Scoreboard layout */}
-                  <div className="flex items-center justify-between gap-6 py-2">
+                  <div className="flex items-center justify-between gap-2 sm:gap-6 py-2">
                     
                     {/* Home Team (VBC Vortex) */}
-                    <div className="flex-1 flex items-center justify-end gap-4">
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-right hidden sm:inline text-white">BSQ ALL-FIVE</span>
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-right sm:hidden text-white">BSQ</span>
-                      <div className="w-12 h-12 rounded-xl bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-lg font-black font-title">
+                    <div className="flex-1 flex items-center justify-end gap-2 sm:gap-4">
+                      <span className="font-title font-extrabold uppercase text-xs sm:text-base text-right hidden sm:inline text-white">BSQ ALL-FIVE</span>
+                      <span className="font-title font-extrabold uppercase text-[11px] sm:hidden text-white">BSQ</span>
+                      <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-sm sm:text-lg font-black font-title flex-shrink-0">
                         B
                       </div>
                     </div>
 
                     {/* Scores Centerpiece */}
-                    <div className="flex items-center gap-4 px-6 py-2 bg-white/2 border border-white/5 rounded-2xl">
+                    <div className="flex items-center px-3 py-1.5 sm:px-6 sm:py-2 bg-white/2 border border-white/5 rounded-2xl flex-shrink-0">
                       {match.status === 'UPCOMING' ? (
-                        <span className="text-sm font-display text-gray-400 font-bold whitespace-nowrap">
-                          {(() => {
-                            const d = new Date(match.date);
-                            return isNaN(d.getTime()) 
-                              ? 'TBD' 
-                              : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                          })()}
+                        <span className="text-xs sm:text-sm font-title font-black text-brand-orange uppercase tracking-wider">
+                          VS
                         </span>
                       ) : (
-                        <div className="flex items-center gap-3 font-title font-black text-2xl sm:text-3xl text-white">
+                        <div className="flex items-center gap-1.5 sm:gap-3 font-title font-black text-xl sm:text-3xl text-white">
                           <motion.span
                             key={match.score_home}
                             initial={{ scale: 1.2, color: '#FF5A00' }}
                             animate={{ scale: 1, color: '#ffffff' }}
-                            className="w-12 text-right"
+                            className="w-8 sm:w-12 text-right"
                           >
                             {match.score_home}
                           </motion.span>
-                          <span className="text-gray-600 text-base font-display font-normal">:</span>
+                          <span className="text-gray-600 text-sm sm:text-base font-display font-normal">:</span>
                           <motion.span
                             key={match.score_away}
                             initial={{ scale: 1.2, color: '#FF5A00' }}
                             animate={{ scale: 1, color: '#ffffff' }}
-                            className="w-12 text-left"
+                            className="w-8 sm:w-12 text-left"
                           >
                             {match.score_away}
                           </motion.span>
@@ -217,12 +218,12 @@ export const MatchCenter: React.FC = () => {
                     </div>
 
                     {/* Away Team (Opponent) */}
-                    <div className="flex-1 flex items-center justify-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center">
+                    <div className="flex-1 flex items-center justify-start gap-2 sm:gap-4">
+                      <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
                         <img src={match.opponent_logo} alt={match.opponent} className="w-full h-full object-cover filter brightness-75" />
                       </div>
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left hidden sm:inline text-white">{match.opponent || 'Unknown'}</span>
-                      <span className="font-title font-extrabold uppercase text-sm sm:text-base text-left sm:hidden text-white">{(match.opponent || 'UNK').slice(0,3).toUpperCase()}</span>
+                      <span className="font-title font-extrabold uppercase text-xs sm:text-base text-left hidden sm:inline text-white">{match.opponent || 'Unknown'}</span>
+                      <span className="font-title font-extrabold uppercase text-[11px] sm:hidden text-white">{(match.opponent || 'UNK').slice(0,3).toUpperCase()}</span>
                     </div>
 
                   </div>

@@ -255,24 +255,24 @@ function App() {
       {/* 2. Floating Glassmorphic Navbar */}
       <nav className={`fixed top-0 inset-x-0 z-[100] transition-all duration-500 font-display ${
         scrolled
-          ? 'py-4 bg-brand-black/80 backdrop-blur-md border-b border-brand-orange/15 shadow-lg shadow-brand-orange/2'
-          : 'py-6 bg-transparent border-b border-transparent'
+          ? 'py-3 sm:py-4 bg-brand-black/80 backdrop-blur-md border-b border-brand-orange/15 shadow-lg shadow-brand-orange/2'
+          : 'py-4 sm:py-6 bg-brand-black/20 sm:bg-transparent border-b border-transparent'
       }`}>
-        <div className={`max-w-7xl mx-auto px-6 flex items-center justify-between ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
           
           {/* Brand Logo */}
-          <NavLink to="/" className={`flex items-center gap-3 group select-none ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
-            <div className="relative w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-lg shadow-brand-orange/10 group-hover:shadow-brand-orange/30 group-hover:border-brand-orange/40 group-hover:scale-105 transition-all duration-300">
+          <NavLink to="/" className={`flex items-center gap-2 sm:gap-3 group select-none ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
+            <div className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-lg shadow-brand-orange/10 group-hover:shadow-brand-orange/30 group-hover:border-brand-orange/40 group-hover:scale-105 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-tr from-brand-orange/20 to-brand-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <img 
                 src="/logo.png" 
                 alt="BSQ Cirebon Logo" 
-                className="w-full h-full object-contain p-1 group-hover:rotate-6 transition-transform duration-500" 
+                className="w-full h-full object-contain p-0.5 sm:p-1 group-hover:rotate-6 transition-transform duration-500" 
               />
             </div>
             <div>
-              <span className="text-sm font-black text-white tracking-widest uppercase block leading-none">{t('hero', 'title')}</span>
-              <span className="text-[9px] font-bold text-brand-gold tracking-[0.2em] uppercase mt-1 block">AL HIKMAH CIREBON</span>
+              <span className="text-xs sm:text-sm font-black text-white tracking-widest uppercase block leading-none">{t('hero', 'title')}</span>
+              <span className="text-[8px] sm:text-[9px] font-bold text-brand-gold tracking-[0.2em] uppercase mt-0.5 sm:mt-1 block">AL HIKMAH CIREBON</span>
             </div>
           </NavLink>
           
@@ -304,11 +304,11 @@ function App() {
           </div>
 
           {/* User Club status, Language, & Cart Drawer Toggle */}
-          <div className={`flex items-center gap-4 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+          <div className={`flex items-center gap-2 sm:gap-4 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
             
             {/* Language Selector Dropdown */}
             <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/2 hover:bg-white/5 border border-white/10 rounded-xl text-xs font-bold font-display uppercase tracking-wider text-gray-300 transition-all cursor-pointer">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-white/2 hover:bg-white/5 border border-white/10 rounded-lg sm:rounded-xl text-xs font-bold font-display uppercase tracking-wider text-gray-300 transition-all cursor-pointer">
                 <Globe size={13} className="text-gray-400" />
                 <span className="uppercase">{language}</span>
               </button>
@@ -344,11 +344,11 @@ function App() {
             {/* Shopping Bag Button */}
             <button
               onClick={() => setCartOpen(!isCartOpen)}
-              className="p-3 bg-white/3 hover:bg-brand-orange/15 border border-white/10 hover:border-brand-orange/30 rounded-xl transition-all cursor-pointer relative text-white hover:text-brand-orange flex items-center justify-center"
+              className="p-2.5 sm:p-3 bg-white/3 hover:bg-brand-orange/15 border border-white/10 hover:border-brand-orange/30 rounded-lg sm:rounded-xl transition-all cursor-pointer relative text-white hover:text-brand-orange flex items-center justify-center"
             >
               <ShoppingBag size={16} />
               {totalCartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-brand-orange text-brand-black font-bold font-display text-[9px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-brand-black">
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-brand-orange text-brand-black font-bold font-display text-[8px] sm:text-[9px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-brand-black">
                   {totalCartCount}
                 </span>
               )}

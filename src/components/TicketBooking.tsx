@@ -186,11 +186,11 @@ export const TicketBooking: React.FC = () => {
                 </div>
 
                 {/* Seats Grid */}
-                <div className="grid gap-4 w-full max-w-[480px]">
+                <div className="grid gap-2 sm:gap-4 w-full max-w-[480px] overflow-x-auto py-2">
                   {SEAT_ROWS.map((row) => (
-                    <div key={row} className="flex items-center gap-3 justify-center">
-                      <span className="w-6 font-title font-bold text-gray-600 text-xs text-center">{row}</span>
-                      <div className="flex-1 flex gap-2 justify-center">
+                    <div key={row} className="flex items-center gap-1.5 sm:gap-3 justify-center">
+                      <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
+                      <div className="flex-1 flex gap-1 sm:gap-2 justify-center">
                         {SEAT_COLS.map((col) => {
                           const seatId = `${selectedSector.id}-${row}-${col}`;
                           const isOccupied = OCCUPIED_SEATS.includes(seatId);
@@ -201,7 +201,7 @@ export const TicketBooking: React.FC = () => {
                               key={col}
                               onClick={() => handleSeatClick(seatId)}
                               disabled={isOccupied}
-                              className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center font-display text-[9px] font-bold cursor-pointer relative ${
+                              className={`w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-md sm:rounded-lg border transition-all flex items-center justify-center font-display text-[8px] sm:text-[9px] font-bold cursor-pointer relative ${
                                 isOccupied
                                   ? 'bg-white/5 border-transparent text-gray-700 cursor-not-allowed'
                                   : isSelected
@@ -214,7 +214,7 @@ export const TicketBooking: React.FC = () => {
                           );
                         })}
                       </div>
-                      <span className="w-6 font-title font-bold text-gray-600 text-xs text-center">{row}</span>
+                      <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
                     </div>
                   ))}
                 </div>
