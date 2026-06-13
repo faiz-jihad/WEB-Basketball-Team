@@ -230,6 +230,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     e.preventDefault();
     if (!newTeamName.trim()) return;
     const newEntry = {
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "team_" + Date.now(),
       team_name: newTeamName.trim(),
       wins: 0,
       losses: 0,
@@ -583,6 +584,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     db.from("milestones")
       .insert({
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "milestone_" + Date.now(),
         year: newMilestoneYear.trim(),
         title: newMilestoneTitle.trim(),
         desc: newMilestoneDesc.trim(),
@@ -850,6 +852,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     db.from("matches")
       .insert({
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "match_" + Date.now(),
         opponent: newMatchOpponent.trim(),
         opponent_logo:
           "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=100",
@@ -911,6 +914,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     db.from("players")
       .insert({
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "player_" + Date.now(),
         name: newPlayerName.trim(),
         position: newPlayerPos,
         number: parseInt(newPlayerNum),
