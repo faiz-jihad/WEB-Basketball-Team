@@ -209,7 +209,7 @@ export const FanCommunity: React.FC = () => {
           </div>
 
           {/* Match Predictor Card */}
-          <div className="glass-panel rounded-3xl p-8 border border-white/5 relative overflow-hidden">
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={18} className="text-brand-orange" />
               <h4 className="font-title font-extrabold uppercase text-white text-start">{t('fan', 'scorePredictor')}</h4>
@@ -259,28 +259,32 @@ export const FanCommunity: React.FC = () => {
                   onSubmit={handlePredict}
                   className="space-y-4"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <label className="text-[9px] text-gray-400 font-display uppercase block mb-1.5 text-center">{t('fan', 'vortexHoops')}</label>
+                  <div className="flex flex-col gap-2">
+                    {/* Team Name Labels (Top Row) */}
+                    <div className="flex items-center justify-between text-[10px] text-gray-400 font-display uppercase tracking-wider px-1">
+                      <span className="flex-1 text-center truncate pr-2" title={t('fan', 'vortexHoops')}>{t('fan', 'vortexHoops')}</span>
+                      <span className="w-8 flex-shrink-0"></span> {/* Spacer for VS alignment */}
+                      <span className="flex-1 text-center truncate pl-2" title={t('fan', 'solarFlares')}>{t('fan', 'solarFlares')}</span>
+                    </div>
+
+                    {/* Inputs and VS (Bottom Row) */}
+                    <div className="flex items-center justify-between gap-3">
                       <input
                         type="number"
                         min="50"
                         max="150"
                         value={homeScorePred}
                         onChange={(e) => setHomeScorePred(e.target.value)}
-                        className="w-full text-center bg-black/40 border border-white/10 rounded-xl py-3 text-xl font-title font-black text-brand-orange focus:outline-none focus:border-brand-orange"
+                        className="flex-1 text-center bg-black/40 border border-white/10 rounded-xl py-2.5 sm:py-3 text-lg sm:text-xl font-title font-black text-brand-orange focus:outline-none focus:border-brand-orange"
                       />
-                    </div>
-                    <span className="text-gray-600 font-bold mt-4 font-display">vs</span>
-                    <div className="flex-1">
-                      <label className="text-[9px] text-gray-400 font-display uppercase block mb-1.5 text-center">{t('fan', 'solarFlares')}</label>
+                      <span className="text-gray-600 font-bold font-display uppercase text-xs sm:text-sm">vs</span>
                       <input
                         type="number"
                         min="50"
                         max="150"
                         value={awayScorePred}
                         onChange={(e) => setAwayScorePred(e.target.value)}
-                        className="w-full text-center bg-black/40 border border-white/10 rounded-xl py-3 text-xl font-title font-black text-white focus:outline-none focus:border-brand-orange"
+                        className="flex-1 text-center bg-black/40 border border-white/10 rounded-xl py-2.5 sm:py-3 text-lg sm:text-xl font-title font-black text-white focus:outline-none focus:border-brand-orange"
                       />
                     </div>
                   </div>

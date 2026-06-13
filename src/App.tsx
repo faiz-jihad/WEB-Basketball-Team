@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Globe, Key } from 'lucide-react';
+import { ShoppingBag, Globe, Key, Menu, X } from 'lucide-react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, setupMessageListener, requestNotificationPermission } from './lib/firebase';
@@ -210,7 +210,20 @@ function App() {
 
   const [scrolled, setScrolled] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setIsLangOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
@@ -307,16 +320,24 @@ function App() {
           <div className={`flex items-center gap-2 sm:gap-4 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
             
             {/* Language Selector Dropdown */}
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-white/2 hover:bg-white/5 border border-white/10 rounded-lg sm:rounded-xl text-xs font-bold font-display uppercase tracking-wider text-gray-300 transition-all cursor-pointer">
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setIsLangOpen(!isLangOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-white/2 hover:bg-white/5 border border-white/10 rounded-lg sm:rounded-xl text-xs font-bold font-display uppercase tracking-wider text-gray-300 transition-all cursor-pointer"
+              >
                 <Globe size={13} className="text-gray-400" />
                 <span className="uppercase">{language}</span>
               </button>
-              <div className={`absolute ${isRtl ? 'left-0' : 'right-0'} top-full mt-2 w-24 bg-bg-dark border border-white/10 rounded-xl shadow-xl py-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-[1000] font-display text-xs`}>
+              <div className={`absolute ${isRtl ? 'left-0' : 'right-0'} top-full mt-2 w-24 bg-bg-dark border border-white/10 rounded-xl shadow-xl py-1 transition-all duration-300 z-[1000] font-display text-xs ${
+                isLangOpen ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none -translate-y-2'
+              }`}>
                 {(['en', 'id', 'ar'] as const).map(lang => (
                   <button
                     key={lang}
-                    onClick={() => setLanguage(lang)}
+                    onClick={() => {
+                      setLanguage(lang);
+                      setIsLangOpen(false);
+                    }}
                     className={`w-full px-4 py-2 hover:bg-brand-orange/15 hover:text-brand-orange transition-colors uppercase font-bold text-center ${
                       language === lang ? 'text-brand-orange bg-brand-orange/5' : 'text-gray-400'
                     }`}
@@ -328,15 +349,15 @@ function App() {
             </div>
 
             {/* Club member badge / Account Link */}
-            <NavLink to="/account" className={`hidden sm:flex items-center gap-2 bg-white/2 hover:bg-brand-orange/15 hover:border-brand-orange/30 border border-white/10 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className="w-5 h-5 rounded overflow-hidden bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-xs">
+            <NavLink to="/account" className={`flex items-center gap-2 bg-white/2 hover:bg-brand-orange/15 hover:border-brand-orange/30 border border-white/10 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl transition-all cursor-pointer ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className="w-5 h-5 rounded overflow-hidden bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-xs flex-shrink-0">
                 {firebaseUser ? (
                   <img src={fan?.avatar || ''} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   '⭐'
                 )}
               </div>
-              <span className="text-[10px] font-bold font-display uppercase tracking-wider text-gray-300">
+              <span className="text-[10px] font-bold font-display uppercase tracking-wider text-gray-300 hidden sm:inline">
                 {firebaseUser ? (fan?.username || 'Google Fan') : t('fan', 'level') + ' ' + (fan?.level || 1)}
               </span>
             </NavLink>
@@ -353,9 +374,81 @@ function App() {
                 </span>
               )}
             </button>
+
+            {/* Mobile Hamburger Menu Toggle */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2.5 sm:p-3 bg-white/3 hover:bg-brand-orange/15 border border-white/10 hover:border-brand-orange/30 rounded-lg sm:rounded-xl transition-all cursor-pointer relative text-white hover:text-brand-orange flex items-center justify-center"
+              aria-label="Toggle Navigation Menu"
+            >
+              {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
 
         </div>
+
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="lg:hidden w-full bg-brand-black/95 backdrop-blur-xl border-b border-brand-orange/15 overflow-hidden"
+            >
+              <div className="px-6 py-6 flex flex-col gap-4 text-xs font-black tracking-widest uppercase text-gray-400">
+                <NavLink
+                  to="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
+                >
+                  {t('nav', 'home')}
+                </NavLink>
+                <NavLink
+                  to="/roster"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
+                >
+                  {t('nav', 'roster')}
+                </NavLink>
+                <NavLink
+                  to="/matches"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
+                >
+                  {t('nav', 'matches')}
+                </NavLink>
+                <NavLink
+                  to="/tickets"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
+                >
+                  {t('nav', 'tickets')}
+                </NavLink>
+                <NavLink
+                  to="/shop"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
+                >
+                  {t('nav', 'shop')}
+                </NavLink>
+                <a
+                  href="#admin"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsMobileMenuOpen(false);
+                    setIsAdminOpen(true);
+                  }}
+                  className="hover:text-brand-orange transition-colors text-brand-gold flex items-center gap-1.5 py-2"
+                >
+                  <Key size={13} className="text-brand-orange" />
+                  <span>{t('nav', 'admin')}</span>
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Main Pages Router with AnimatePresence Page Transitions */}
@@ -410,9 +503,6 @@ function App() {
   );
 }
 
-// Small helper icon component
-const X = ({ size }: { size: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);
+
 
 export default App;
