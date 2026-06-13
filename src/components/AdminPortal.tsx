@@ -22,9 +22,11 @@ import {
   Sparkles,
   Pencil,
   Check,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { db } from "../lib/supabase";
-import type { Player, Match, Standing, Merchandise, Milestone } from "../lib/supabase";
+import type { Player, Match, Standing, Merchandise, Milestone, ActiveSession } from "../lib/supabase";
 import useAppStore from "../lib/store";
 import { getTranslation } from "../lib/i18n";
 
@@ -39,11 +41,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 }) => {
   type AdminRole = "admin" | "coach" | "shop_manager";
 
-  // Load passcodes from env with safe dev fallbacks
-  const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASSCODE || "admin2026";
-  const DEV_PASS = import.meta.env.VITE_DEVELOPER_PASSCODE || "vortex2026";
-  const COACH_PASS = import.meta.env.VITE_COACH_PASSCODE || "coach2026";
-  const SHOP_PASS = import.meta.env.VITE_SHOP_PASSCODE || "shop2026";
+  // Removed hardcoded passcodes for security. Now using Supabase Auth.
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window !== "undefined") {
@@ -68,12 +66,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return null;
   });
 
-  const [passcode, setPasscode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [passError, setPassError] = useState(false);
-  const [showPasscode, setShowPasscode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "matches" | "roster" | "store" | "standings" | "story" | "bookings"
+    "matches" | "roster" | "store" | "standings" | "story" | "bookings" | "active_users"
   >(() => {
     if (typeof window !== "undefined") {
       const savedTab = sessionStorage.getItem("bsq_admin_active_tab") as any;
@@ -143,6 +143,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (tab === "standings") return t("matches", "standingsTitle");
     if (tab === "story") return t("story", "legacy");
     if (tab === "bookings") return "Community & Bookings";
+    if (tab === "active_users") return language === "id" ? "Pengguna Online" : "Online Users";
     return tab;
   };
 
@@ -160,29 +161,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return t("shop", "accessories");
   };
 
-  // Auth check
-  const handleAuth = (e: React.FormEvent) => {
+  // Auth check using Supabase Auth
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRole) return;
+    if (!selectedRole || !email || !password) return;
 
-    let isValid = false;
-    if (
-      selectedRole === "admin" &&
-      (passcode === ADMIN_PASS || passcode === DEV_PASS)
-    ) {
-      isValid = true;
-    } else if (selectedRole === "coach" && passcode === COACH_PASS) {
-      isValid = true;
-    } else if (selectedRole === "shop_manager" && passcode === SHOP_PASS) {
-      isValid = true;
-    }
+    setIsLoading(true);
+    setPassError(false);
 
-    if (isValid) {
+    try {
+      const { data, error } = await db.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data?.user) {
+        throw new Error(error?.message || "Invalid credentials");
+      }
+
+      // In a real app, verify the user's role from auth claims or a users table.
+      // Here we assume successful login matches their selected role for demo purposes.
       setIsAuthenticated(true);
       setAuthenticatedRole(selectedRole);
-      setPassError(false);
-      setPasscode("");
-      setShowPasscode(false);
+      setPassword("");
+      setShowPassword(false);
 
       sessionStorage.setItem("bsq_admin_authenticated", "true");
       sessionStorage.setItem("bsq_admin_role", selectedRole);
@@ -202,15 +204,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         t("admin", "unlockedToastDesc"),
       );
       addXP(50); // XP reward for unlocking dashboard
-    } else {
+    } catch (err: any) {
       setPassError(true);
-      // Reset shake error state after animation finishes so it can trigger again
       setTimeout(() => setPassError(false), 500);
       addToast(
         "warning",
         t("admin", "deniedToast"),
-        t("admin", "deniedToastDesc"),
+        err.message || t("admin", "deniedToastDesc"),
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -220,6 +223,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [merchandise, setMerchandise] = useState<Merchandise[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
   const [newTeamName, setNewTeamName] = useState("");
 
   const handleAddTeam = (e: React.FormEvent) => {
@@ -321,6 +325,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       .then(({ data }: any) => {
         if (data) setMilestones(data as Milestone[]);
       });
+    (db as any)
+      .from("active_sessions")
+      .select("*")
+      .then(({ data }: any) => {
+        if (data) setActiveSessions(data as ActiveSession[]);
+      });
   };
 
   useEffect(() => {
@@ -328,6 +338,152 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       loadDatabase();
     }
   }, [isAuthenticated, isOpen]);
+
+  useEffect(() => {
+    const fetchSessions = () => {
+      (db as any).from("active_sessions").select("*").then(({ data }: any) => {
+        if (data) setActiveSessions(data as ActiveSession[]);
+      });
+    };
+
+    window.addEventListener("bsq_active_sessions_updated", fetchSessions);
+    return () => {
+      window.removeEventListener("bsq_active_sessions_updated", fetchSessions);
+    };
+  }, []);
+
+  const handleSyncLocalData = () => {
+    const getLocal = (table: string, version = "v2") => {
+      const val = localStorage.getItem(`bsq_db_${version}_${table}`);
+      return val ? JSON.parse(val) : [];
+    };
+
+    const localPlayers = getLocal("players");
+    const localMatches = getLocal("matches");
+    const localStandings = getLocal("standings", "v3");
+    const localMerchandise = getLocal("merchandise");
+    const localMilestones = getLocal("milestones");
+    const localManager = getLocal("manager");
+
+    const syncPromises: Promise<any>[] = [];
+
+    addToast("info", "Syncing Database...", "Migrating local data to Supabase...");
+
+    if (localPlayers.length > 0) {
+      const cleanPlayers = localPlayers.map((p: any) => ({
+        ...p,
+        number: parseInt(p.number) || 0
+      }));
+      syncPromises.push(
+        db.from("players").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("players").insert(cleanPlayers);
+          })
+      );
+    }
+    if (localMatches.length > 0) {
+      const cleanMatches = localMatches.map((m: any) => {
+        let parsedDate = new Date(m.date);
+        if (isNaN(parsedDate.getTime())) {
+          parsedDate = new Date(); // fallback to current time
+        }
+        return {
+          ...m,
+          date: parsedDate.toISOString(),
+          score_home: parseInt(m.score_home) || 0,
+          score_away: parseInt(m.score_away) || 0,
+          quarter: m.quarter ? (parseInt(m.quarter) || null) : null
+        };
+      });
+      syncPromises.push(
+        db.from("matches").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("matches").insert(cleanMatches);
+          })
+      );
+    }
+    if (localStandings.length > 0) {
+      const cleanStandings = localStandings.map((s: any) => ({
+        ...s,
+        wins: parseInt(s.wins) || 0,
+        losses: parseInt(s.losses) || 0,
+        points: parseInt(s.points) || 0
+      }));
+      syncPromises.push(
+        db.from("standings").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("standings").insert(cleanStandings);
+          })
+      );
+    }
+    if (localMerchandise.length > 0) {
+      const cleanMerchandise = localMerchandise.map((m: any) => {
+        const rawPrice = typeof m.price === "string" 
+          ? m.price.replace(/[^0-9.]/g, "") 
+          : String(m.price);
+        const parsedPrice = parseFloat(rawPrice) || 0;
+        return {
+          ...m,
+          price: parsedPrice,
+          stock: parseInt(m.stock) || 0
+        };
+      });
+      syncPromises.push(
+        db.from("merchandise").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("merchandise").insert(cleanMerchandise);
+          })
+      );
+    }
+    if (localMilestones.length > 0) {
+      const mappedMilestones = localMilestones.map((m: any) => ({
+        id: m.id,
+        year: String(m.year),
+        title: m.title,
+        desc: m.desc,
+        icon: m.icon
+      }));
+      syncPromises.push(
+        db.from("milestones").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("milestones").insert(mappedMilestones);
+          })
+      );
+    }
+    if (localManager.length > 0) {
+      syncPromises.push(
+        db.from("manager").delete().neq("id", "_none_")
+          .then((res: any) => {
+            if (res.error) return res;
+            return db.from("manager").insert(localManager);
+          })
+      );
+    }
+
+    Promise.all(syncPromises)
+      .then((results) => {
+        const errors = results
+          .filter((r: any) => r && r.error)
+          .map((r: any) => r.error.message || JSON.stringify(r.error));
+
+        if (errors.length > 0) {
+          console.error("Sync errors:", errors);
+          addToast("warning", "Sync Failed", `Error: ${errors.slice(0, 2).join(", ")}`);
+        } else {
+          addToast("success", "Sync Completed! 🎉", "All local data successfully uploaded to Supabase!");
+        }
+        loadDatabase();
+      })
+      .catch((err) => {
+        console.error("Migration error:", err);
+        addToast("warning", "Sync Failed", "An error occurred during database migration.");
+      });
+  };
 
   // Match management state
   const [isSimulating, setIsSimulating] = useState(true);
@@ -572,7 +728,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         score_away: updatedAway,
       })
       .eq("id", matchId)
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast("warning", "Update Failed", error.message || "Failed to update score.");
+          return;
+        }
         loadDatabase();
         addToast(
           "success",
@@ -595,7 +755,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     db.from("matches")
       .update(updates)
       .eq("id", matchId)
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast("warning", "Status Update Failed", error.message || "Failed to change status.");
+          return;
+        }
         loadDatabase();
         addToast(
           "success",
@@ -619,12 +783,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 points: vortexStand.points + (homeWon ? 3 : 1),
                 streak: homeWon ? "W6" : "L1",
               })
-              .eq("id", vortexStand.id);
+              .eq("id", vortexStand.id)
+              .then(({ error: standError }: any) => {
+                if (standError) console.error("Error updating home standings:", standError);
+              });
           }
 
           // Find Opponent standing
           const oppStand = standings.find((s) =>
-            s.team_name.toLowerCase().includes(match.opponent.toLowerCase()),
+            s && s.team_name && match && match.opponent && s.team_name.toLowerCase().includes(match.opponent.toLowerCase()),
           );
           if (oppStand) {
             db.from("standings")
@@ -634,7 +801,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 points: oppStand.points + (homeWon ? 1 : 3),
                 streak: homeWon ? "L1" : "W1",
               })
-              .eq("id", oppStand.id);
+              .eq("id", oppStand.id)
+              .then(({ error: standError }: any) => {
+                if (standError) console.error("Error updating opponent standings:", standError);
+              });
           }
         }
       });
@@ -648,7 +818,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const startEditMatch = (match: Match) => {
     setEditingMatchId(match.id);
     setEditMatchOpponent(match.opponent);
-    setEditMatchDate(new Date(match.date).toISOString().slice(0, 16));
+    const parsedDate = new Date(match.date);
+    setEditMatchDate(isNaN(parsedDate.getTime()) ? new Date().toISOString().slice(0, 16) : parsedDate.toISOString().slice(0, 16));
     setEditMatchVenue(match.venue);
   };
 
@@ -662,7 +833,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         venue: editMatchVenue,
       })
       .eq("id", editingMatchId)
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast("warning", "Update Failed", error.message || "Failed to update match.");
+          return;
+        }
         loadDatabase();
         setEditingMatchId(null);
         addToast("success", "Match Updated", `Updated matchup vs ${editMatchOpponent}.`);
@@ -684,7 +859,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         score_home: 0,
         score_away: 0,
       })
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast("warning", "Failed to Add Match", error.message || "Insert failed.");
+          return;
+        }
         loadDatabase();
         setNewMatchOpponent("");
         setNewMatchDate("");
@@ -706,10 +885,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [newPlayerPPG, setNewPlayerPPG] = useState("15");
   const [newPlayerAPG, setNewPlayerAPG] = useState("4");
   const [newPlayerRPG, setNewPlayerRPG] = useState("5");
+  const [newPlayerSPG, setNewPlayerSPG] = useState("1.2");
+  const [newPlayerBPG, setNewPlayerBPG] = useState("0.8");
+  const [newPlayerHighlightUrl, setNewPlayerHighlightUrl] = useState("https://youtu.be/fGNu9WiTqXg");
+  const [newPlayerAwards, setNewPlayerAwards] = useState("");
+  const [newPlayerSocialHandle, setNewPlayerSocialHandle] = useState("");
+  const [newPlayerFollowers, setNewPlayerFollowers] = useState("");
+  const [newPlayerSocialFeed1, setNewPlayerSocialFeed1] = useState("");
+  const [newPlayerSocialFeed2, setNewPlayerSocialFeed2] = useState("");
+  const [newPlayerSocialFeed3, setNewPlayerSocialFeed3] = useState("");
 
   const handleCreatePlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
+
+    const parsedAwards = newPlayerAwards.split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const parsedSocialFeed = [
+      newPlayerSocialFeed1.trim(),
+      newPlayerSocialFeed2.trim(),
+      newPlayerSocialFeed3.trim()
+    ].filter(Boolean);
 
     db.from("players")
       .insert({
@@ -725,19 +923,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           newPlayerBio.trim() ||
           "A professional athlete on the BSQ ALL-FIVE roster.",
         stats: {
-          ppg: parseFloat(newPlayerPPG),
-          apg: parseFloat(newPlayerAPG),
-          rpg: parseFloat(newPlayerRPG),
-          spg: 1.2,
-          bpg: 0.8,
+          ppg: parseFloat(newPlayerPPG) || 0,
+          apg: parseFloat(newPlayerAPG) || 0,
+          rpg: parseFloat(newPlayerRPG) || 0,
+          spg: parseFloat(newPlayerSPG) || 1.2,
+          bpg: parseFloat(newPlayerBPG) || 0.8,
         },
-        highlight_url: "https://www.w3schools.com/html/mov_bbb.mp4",
+        highlight_url: newPlayerHighlightUrl.trim() || "https://youtu.be/fGNu9WiTqXg",
+        awards: parsedAwards.length > 0 ? parsedAwards : null,
+        social_handle: newPlayerSocialHandle.trim() || null,
+        followers: newPlayerFollowers.trim() || null,
+        social_feed: parsedSocialFeed.length > 0 ? parsedSocialFeed : null
       })
       .then(() => {
         loadDatabase();
         setNewPlayerName("");
         setNewPlayerBio("");
         setNewPlayerPhoto("");
+        setNewPlayerNum("0");
+        setNewPlayerHeight("195 cm");
+        setNewPlayerWeight("90 kg");
+        setNewPlayerPPG("15");
+        setNewPlayerAPG("4");
+        setNewPlayerRPG("5");
+        setNewPlayerSPG("1.2");
+        setNewPlayerBPG("0.8");
+        setNewPlayerHighlightUrl("https://youtu.be/fGNu9WiTqXg");
+        setNewPlayerAwards("");
+        setNewPlayerSocialHandle("");
+        setNewPlayerFollowers("");
+        setNewPlayerSocialFeed1("");
+        setNewPlayerSocialFeed2("");
+        setNewPlayerSocialFeed3("");
         addToast(
           "success",
           "Player Created",
@@ -767,23 +984,81 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [editPlayerName, setEditPlayerName] = useState("");
   const [editPlayerPos, setEditPlayerPos] = useState<Player["position"]>("PG");
   const [editPlayerNum, setEditPlayerNum] = useState("");
+  const [editPlayerHeight, setEditPlayerHeight] = useState("");
+  const [editPlayerWeight, setEditPlayerWeight] = useState("");
+  const [editPlayerBio, setEditPlayerBio] = useState("");
+  const [editPlayerPhoto, setEditPlayerPhoto] = useState("");
+  const [editPlayerHighlightUrl, setEditPlayerHighlightUrl] = useState("");
+  const [editPlayerPPG, setEditPlayerPPG] = useState("0");
+  const [editPlayerAPG, setEditPlayerAPG] = useState("0");
+  const [editPlayerRPG, setEditPlayerRPG] = useState("0");
+  const [editPlayerSPG, setEditPlayerSPG] = useState("0.0");
+  const [editPlayerBPG, setEditPlayerBPG] = useState("0.0");
+  const [editPlayerAwards, setEditPlayerAwards] = useState("");
+  const [editPlayerSocialHandle, setEditPlayerSocialHandle] = useState("");
+  const [editPlayerFollowers, setEditPlayerFollowers] = useState("");
+  const [editPlayerSocialFeed1, setEditPlayerSocialFeed1] = useState("");
+  const [editPlayerSocialFeed2, setEditPlayerSocialFeed2] = useState("");
+  const [editPlayerSocialFeed3, setEditPlayerSocialFeed3] = useState("");
 
   const startEditPlayer = (p: Player) => {
     setEditingPlayerId(p.id);
     setEditPlayerName(p.name);
     setEditPlayerPos(p.position);
     setEditPlayerNum(p.number.toString());
+    setEditPlayerHeight(p.height || "195 cm");
+    setEditPlayerWeight(p.weight || "90 kg");
+    setEditPlayerBio(p.bio || "");
+    setEditPlayerPhoto(p.photo || "");
+    setEditPlayerHighlightUrl(p.highlight_url || "https://youtu.be/fGNu9WiTqXg");
+    setEditPlayerPPG((p.stats?.ppg || 0).toString());
+    setEditPlayerAPG((p.stats?.apg || 0).toString());
+    setEditPlayerRPG((p.stats?.rpg || 0).toString());
+    setEditPlayerSPG((p.stats?.spg || 1.2).toString());
+    setEditPlayerBPG((p.stats?.bpg || 0.8).toString());
+    setEditPlayerAwards((p.awards || []).join(", "));
+    setEditPlayerSocialHandle(p.social_handle || "");
+    setEditPlayerFollowers(p.followers || "");
+    setEditPlayerSocialFeed1(p.social_feed?.[0] || "");
+    setEditPlayerSocialFeed2(p.social_feed?.[1] || "");
+    setEditPlayerSocialFeed3(p.social_feed?.[2] || "");
   };
 
   const handleUpdatePlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPlayerId || !editPlayerName.trim()) return;
 
+    const parsedAwards = editPlayerAwards.split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const parsedSocialFeed = [
+      editPlayerSocialFeed1.trim(),
+      editPlayerSocialFeed2.trim(),
+      editPlayerSocialFeed3.trim()
+    ].filter(Boolean);
+
     db.from("players")
       .update({
         name: editPlayerName.trim(),
         position: editPlayerPos,
         number: parseInt(editPlayerNum) || 0,
+        height: editPlayerHeight,
+        weight: editPlayerWeight,
+        bio: editPlayerBio.trim(),
+        photo: editPlayerPhoto,
+        highlight_url: editPlayerHighlightUrl.trim(),
+        stats: {
+          ppg: parseFloat(editPlayerPPG) || 0,
+          apg: parseFloat(editPlayerAPG) || 0,
+          rpg: parseFloat(editPlayerRPG) || 0,
+          spg: parseFloat(editPlayerSPG) || 1.2,
+          bpg: parseFloat(editPlayerBPG) || 0.8,
+        },
+        awards: parsedAwards.length > 0 ? parsedAwards : null,
+        social_handle: editPlayerSocialHandle.trim() || null,
+        followers: editPlayerFollowers.trim() || null,
+        social_feed: parsedSocialFeed.length > 0 ? parsedSocialFeed : null
       })
       .eq("id", editingPlayerId)
       .then(() => {
@@ -850,6 +1125,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         category: newMerchCategory,
         stock: parseInt(newMerchStock),
         description: newMerchDesc.trim() || "Premium merchandise item.",
+        is_locked: false,
       })
       .then(() => {
         loadDatabase();
@@ -907,6 +1183,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         window.dispatchEvent(new Event("bsq_inventory_updated"));
         setEditingMerchId(null);
         addToast("success", "Product Updated", `Updated ${editMerchName}.`);
+      });
+  };
+
+  const handleToggleLockMerch = (item: Merchandise) => {
+    db.from("merchandise")
+      .update({ is_locked: !item.is_locked })
+      .eq("id", item.id)
+      .then(() => {
+        loadDatabase();
+        window.dispatchEvent(new Event("bsq_inventory_updated"));
+        addToast(
+          "success",
+          !item.is_locked ? "Product Locked" : "Product Unlocked",
+          `Successfully ${!item.is_locked ? "locked" : "unlocked"} ${item.name}.`
+        );
       });
   };
 
@@ -1104,15 +1395,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div>
                       <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block mb-1.5 text-center">
-                        {t("admin", "keyPlaceholder")}
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="admin@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full text-center bg-black/40 border border-white/10 rounded-xl py-3 text-sm text-white focus:outline-none focus:border-brand-orange mb-4"
+                      />
+                      <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block mb-1.5 text-center">
+                        Password
                       </label>
                       <div className="relative">
                         <input
-                          type={showPasscode ? "text" : "password"}
+                          type={showPassword ? "text" : "password"}
                           required
                           placeholder="••••••••"
-                          value={passcode}
-                          onChange={(e) => setPasscode(e.target.value)}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                           className={`w-full text-center bg-black/40 border rounded-xl py-3 text-sm text-white focus:outline-none tracking-widest ${
                             passError
                               ? "border-red-600 focus:border-red-600"
@@ -1121,12 +1423,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPasscode(!showPasscode)}
+                          onClick={() => setShowPassword(!showPassword)}
                           className={`absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-white cursor-pointer ${
                             isRtl ? "left-3" : "right-3"
                           }`}
                         >
-                          {showPasscode ? (
+                          {showPassword ? (
                             <EyeOff size={16} />
                           ) : (
                             <Eye size={16} />
@@ -1135,31 +1437,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </div>
                       {passError && (
                         <span className="text-[9px] text-red-500 font-bold block mt-1 text-center font-display">
-                          {selectedRole === "admin"
-                            ? language === "id"
-                              ? "Petunjuk: admin2026 atau vortex2026"
-                              : language === "ar"
-                                ? "تلميح: admin2026 أو vortex2026"
-                                : "Hint: admin2026 or vortex2026"
-                            : selectedRole === "coach"
-                              ? language === "id"
-                                ? "Petunjuk: coach2026"
-                                : language === "ar"
-                                  ? "تلميح: coach2026"
-                                  : "Hint: coach2026"
-                              : language === "id"
-                                ? "Petunjuk: shop2026"
-                                : language === "ar"
-                                  ? "تلميح: shop2026"
-                                  : "Hint: shop2026"}
+                          {language === "id"
+                            ? "Kredensial tidak valid"
+                            : "Invalid credentials"}
                         </span>
                       )}
                     </div>
                     <button
-                      type="submit"
-                      className="w-full py-3 bg-brand-orange hover:bg-brand-burnt text-brand-black font-black text-xs tracking-[0.2em] rounded-xl uppercase transition-colors cursor-pointer"
+                      disabled={isLoading}
+                      className="w-full py-3 bg-brand-orange hover:bg-brand-burnt text-brand-black font-black text-xs tracking-[0.2em] rounded-xl uppercase transition-colors cursor-pointer disabled:opacity-50"
                     >
-                      {t("admin", "authBtn")}
+                      {isLoading ? (language === "id" ? "Memverifikasi..." : "Verifying...") : t("admin", "authBtn")}
                     </button>
                   </form>
                 </>
@@ -1171,7 +1459,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               initial={{ scale: 0.95, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 50 }}
-              className="relative max-w-5xl w-full h-[85vh] bg-bg-dark border border-brand-orange/20 rounded-3xl overflow-hidden shadow-2xl flex flex-col z-10"
+              className="relative w-[95%] md:max-w-5xl md:w-full h-[90vh] md:h-[85vh] bg-bg-dark border border-brand-orange/20 rounded-3xl overflow-hidden shadow-2xl flex flex-col z-10"
             >
               {/* Header */}
               <div
@@ -1197,11 +1485,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className={`flex items-center gap-2.5 ${isRtl ? "flex-row-reverse" : ""}`}
                 >
                   <button
+                    onClick={handleSyncLocalData}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-brand-orange/15 hover:bg-brand-orange hover:text-brand-black border border-brand-orange/30 text-brand-orange hover:border-brand-orange/50 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                  >
+                    <RefreshCw size={12} className="animate-spin-slow" />
+                    <span className="hidden sm:inline">Sync Local Data</span>
+                  </button>
+                  <button
                     onClick={() => {
                       setIsAuthenticated(false);
                       setAuthenticatedRole(null);
-                      setSelectedRole(null);
-                      setPasscode("");
+                      setPassError(false);
+                      setPassword("");
+                      db.auth?.signOut();
                       sessionStorage.removeItem("bsq_admin_authenticated");
                       sessionStorage.removeItem("bsq_admin_role");
                       sessionStorage.removeItem("bsq_admin_active_tab");
@@ -1216,7 +1512,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <LogOut size={12} />
-                    {t("admin", "logout")}
+                    <span className="hidden sm:inline">{t("admin", "logout")}</span>
                   </button>
                   <button
                     onClick={onClose}
@@ -1229,11 +1525,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               {/* Console Tabs */}
               <div
-                className={`flex bg-white/2 border-b border-white/5 text-xs font-display font-semibold px-4 gap-6 ${isRtl ? "flex-row-reverse" : ""}`}
+                className={`flex bg-white/2 border-b border-white/5 text-xs font-display font-semibold px-4 gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide ${isRtl ? "flex-row-reverse" : ""}`}
               >
                 {(
                   (authenticatedRole === "admin"
-                    ? ["matches", "roster", "store", "standings", "story", "bookings"]
+                    ? ["matches", "roster", "store", "standings", "story", "bookings", "active_users"]
                     : authenticatedRole === "coach"
                       ? ["matches", "roster"]
                       : ["store"]) as const
@@ -1244,7 +1540,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       setActiveTab(tab);
                       sessionStorage.setItem("bsq_admin_active_tab", tab);
                     }}
-                    className={`py-4 px-2 uppercase tracking-wider relative cursor-pointer ${
+                    className={`shrink-0 py-4 px-2 uppercase tracking-wider relative cursor-pointer ${
                       activeTab === tab
                         ? "text-brand-orange font-bold"
                         : "text-gray-400 hover:text-white"
@@ -1262,7 +1558,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Content Panels */}
-              <div className="flex-1 overflow-y-auto p-8 font-display">
+              <div className="flex-1 overflow-y-auto p-4 md:p-8 font-display">
                 {/* 1. MATCHES PANEL */}
                 {activeTab === "matches" && (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -1719,7 +2015,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 {/* 2. ROSTER PANEL */}
                 {activeTab === "roster" && (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    {/* Players list */}
                     <div className="lg:col-span-7 space-y-4">
                       <h4 className="font-title font-extrabold uppercase text-white text-sm border-b border-white/5 pb-3 text-start">
                         {t("admin", "roster")}
@@ -1730,14 +2025,226 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className={`bg-white/2 border border-white/5 p-4 rounded-xl flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}
                         >
                           {editingPlayerId === player.id ? (
-                            <form onSubmit={handleUpdatePlayer} className="w-full flex items-center gap-2">
-                              <input type="text" value={editPlayerName} onChange={e => setEditPlayerName(e.target.value)} required placeholder="Name" className="flex-1 bg-black/40 border border-white/10 px-2 py-1.5 rounded text-white text-xs" />
-                              <select value={editPlayerPos} onChange={e => setEditPlayerPos(e.target.value as Player["position"])} className="bg-black/40 border border-white/10 px-2 py-1.5 rounded text-white text-xs">
-                                {["PG", "SG", "SF", "PF", "C"].map(pos => <option key={pos} value={pos}>{pos}</option>)}
-                              </select>
-                              <input type="number" value={editPlayerNum} onChange={e => setEditPlayerNum(e.target.value)} required placeholder="#" className="w-16 bg-black/40 border border-white/10 px-2 py-1.5 rounded text-white text-xs" />
-                              <button type="submit" className="p-1.5 bg-green-500 hover:bg-green-400 text-black rounded cursor-pointer"><Check size={14} /></button>
-                              <button type="button" onClick={() => setEditingPlayerId(null)} className="p-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded cursor-pointer"><X size={14} /></button>
+                            <form onSubmit={handleUpdatePlayer} className="w-full space-y-4 bg-white/2 border border-white/10 p-5 rounded-2xl animate-fade-in text-start">
+                              <h5 className="text-[10px] font-display font-black text-brand-orange uppercase tracking-wider mb-2">
+                                Edit Player Details
+                              </h5>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Name</label>
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerName} 
+                                    onChange={e => setEditPlayerName(e.target.value)} 
+                                    required 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Jersey #</label>
+                                  <input 
+                                    type="number" 
+                                    value={editPlayerNum} 
+                                    onChange={e => setEditPlayerNum(e.target.value)} 
+                                    required 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Position</label>
+                                  <select 
+                                    value={editPlayerPos} 
+                                    onChange={e => setEditPlayerPos(e.target.value as Player["position"])} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2 rounded-xl text-white text-xs"
+                                  >
+                                    {["PG", "SG", "SF", "PF", "C"].map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Height</label>
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerHeight} 
+                                    onChange={e => setEditPlayerHeight(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Weight</label>
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerWeight} 
+                                    onChange={e => setEditPlayerWeight(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-5 gap-1.5">
+                                <div>
+                                  <label className="text-[8px] text-gray-505 font-bold block mb-1 uppercase text-center">PPG</label>
+                                  <input 
+                                    type="number" step="0.1" 
+                                    value={editPlayerPPG} 
+                                    onChange={e => setEditPlayerPPG(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-1.5 rounded-lg text-white text-center text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] text-gray-505 font-bold block mb-1 uppercase text-center">APG</label>
+                                  <input 
+                                    type="number" step="0.1" 
+                                    value={editPlayerAPG} 
+                                    onChange={e => setEditPlayerAPG(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-1.5 rounded-lg text-white text-center text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] text-gray-505 font-bold block mb-1 uppercase text-center">RPG</label>
+                                  <input 
+                                    type="number" step="0.1" 
+                                    value={editPlayerRPG} 
+                                    onChange={e => setEditPlayerRPG(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-1.5 rounded-lg text-white text-center text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] text-gray-505 font-bold block mb-1 uppercase text-center">SPG</label>
+                                  <input 
+                                    type="number" step="0.1" 
+                                    value={editPlayerSPG} 
+                                    onChange={e => setEditPlayerSPG(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-1.5 rounded-lg text-white text-center text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] text-gray-505 font-bold block mb-1 uppercase text-center">BPG</label>
+                                  <input 
+                                    type="number" step="0.1" 
+                                    value={editPlayerBPG} 
+                                    onChange={e => setEditPlayerBPG(e.target.value)} 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-1.5 rounded-lg text-white text-center text-xs" 
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Awards / Honors (Comma-separated)</label>
+                                <input 
+                                  type="text" 
+                                  value={editPlayerAwards} 
+                                  onChange={e => setEditPlayerAwards(e.target.value)} 
+                                  placeholder="e.g. 2x Finals MVP, All-Star First Team, Blocks Leader" 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Social Handle</label>
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerSocialHandle} 
+                                    onChange={e => setEditPlayerSocialHandle(e.target.value)} 
+                                    placeholder="e.g. marcus_v3" 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Followers Count</label>
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerFollowers} 
+                                    onChange={e => setEditPlayerFollowers(e.target.value)} 
+                                    placeholder="e.g. 150K or 1.2M" 
+                                    className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Social Feed Posts (Up to 3 recent updates)</label>
+                                <input 
+                                  type="text" 
+                                  value={editPlayerSocialFeed1} 
+                                  onChange={e => setEditPlayerSocialFeed1(e.target.value)} 
+                                  placeholder="Post 1 (Recent update)" 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-1.5 rounded-lg text-white text-xs" 
+                                />
+                                <input 
+                                  type="text" 
+                                  value={editPlayerSocialFeed2} 
+                                  onChange={e => setEditPlayerSocialFeed2(e.target.value)} 
+                                  placeholder="Post 2" 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-1.5 rounded-lg text-white text-xs" 
+                                />
+                                <input 
+                                  type="text" 
+                                  value={editPlayerSocialFeed3} 
+                                  onChange={e => setEditPlayerSocialFeed3(e.target.value)} 
+                                  placeholder="Post 3" 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-1.5 rounded-lg text-white text-xs" 
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Photo URL</label>
+                                <div className="flex items-center gap-3 bg-black/20 border border-white/10 p-2 rounded-xl">
+                                  {editPlayerPhoto && (
+                                    <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
+                                      <img src={editPlayerPhoto} alt="Edit Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                  )}
+                                  <input 
+                                    type="text" 
+                                    value={editPlayerPhoto} 
+                                    onChange={e => setEditPlayerPhoto(e.target.value)} 
+                                    placeholder="Photo URL" 
+                                    className="flex-1 bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-1.5 rounded-lg text-white text-xs" 
+                                  />
+                                  <span className="text-[9px] text-gray-500 uppercase font-black">or</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handlePhotoUpload(e, setEditPlayerPhoto)}
+                                    className="text-[10px] text-gray-500 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-white/5 file:text-white file:cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Highlight Video URL</label>
+                                <input 
+                                  type="text" 
+                                  value={editPlayerHighlightUrl} 
+                                  onChange={e => setEditPlayerHighlightUrl(e.target.value)} 
+                                  placeholder="e.g. https://www.w3schools.com/html/mov_bbb.mp4" 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase">Player Biography</label>
+                                <textarea 
+                                  value={editPlayerBio} 
+                                  onChange={e => setEditPlayerBio(e.target.value)} 
+                                  placeholder="Biography details..." 
+                                  className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs h-16 resize-none" 
+                                />
+                              </div>
+
+                              <div className="flex gap-2 justify-end">
+                                <button type="button" onClick={() => setEditingPlayerId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl cursor-pointer text-xs transition-colors">
+                                  Cancel
+                                </button>
+                                <button type="submit" className="px-5 py-2 bg-brand-orange hover:bg-brand-burnt text-brand-black font-black uppercase tracking-wider rounded-xl cursor-pointer text-xs transition-all shadow-md shadow-brand-orange/10">
+                                  Save Changes
+                                </button>
+                              </div>
                             </form>
                           ) : (
                             <>
@@ -1880,50 +2387,135 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               />
                             </div>
                           </div>
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-5 gap-2">
                             <div>
-                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
-                                {t("admin", "ppg")}
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-center">
+                                PPG
                               </label>
                               <input
                                 type="number"
                                 step="0.1"
                                 value={newPlayerPPG}
-                                onChange={(e) =>
-                                  setNewPlayerPPG(e.target.value)
-                                }
-                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2.5 rounded-xl text-white text-start"
+                                onChange={(e) => setNewPlayerPPG(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-2 rounded-xl text-white text-center"
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
-                                {t("admin", "apg")}
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-center">
+                                APG
                               </label>
                               <input
                                 type="number"
                                 step="0.1"
                                 value={newPlayerAPG}
-                                onChange={(e) =>
-                                  setNewPlayerAPG(e.target.value)
-                                }
-                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2.5 rounded-xl text-white text-start"
+                                onChange={(e) => setNewPlayerAPG(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-2 rounded-xl text-white text-center"
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
-                                {t("admin", "rpg")}
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-center">
+                                RPG
                               </label>
                               <input
                                 type="number"
                                 step="0.1"
                                 value={newPlayerRPG}
-                                onChange={(e) =>
-                                  setNewPlayerRPG(e.target.value)
-                                }
-                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-2 py-2.5 rounded-xl text-white text-start"
+                                onChange={(e) => setNewPlayerRPG(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-2 rounded-xl text-white text-center"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-center">
+                                SPG
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={newPlayerSPG}
+                                onChange={(e) => setNewPlayerSPG(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-2 rounded-xl text-white text-center"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-center">
+                                BPG
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={newPlayerBPG}
+                                onChange={(e) => setNewPlayerBPG(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none p-2 rounded-xl text-white text-center"
                               />
                             </div>
                           </div>
+                          <div>
+                            <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
+                              Awards / Honors (Comma-separated)
+                            </label>
+                            <input 
+                              type="text" 
+                              value={newPlayerAwards} 
+                              onChange={e => setNewPlayerAwards(e.target.value)} 
+                              placeholder="e.g. DBL MVP, All-Star, Slam Dunk Champion" 
+                              className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2.5 rounded-xl text-white text-xs" 
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
+                                Social Handle
+                              </label>
+                              <input 
+                                type="text" 
+                                value={newPlayerSocialHandle} 
+                                onChange={e => setNewPlayerSocialHandle(e.target.value)} 
+                                placeholder="e.g. marcus_v" 
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2.5 rounded-xl text-white text-xs" 
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
+                                Followers Count
+                              </label>
+                              <input 
+                                type="text" 
+                                value={newPlayerFollowers} 
+                                onChange={e => setNewPlayerFollowers(e.target.value)} 
+                                placeholder="e.g. 50K or 1.2M" 
+                                className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2.5 rounded-xl text-white text-xs" 
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] text-gray-400 font-bold block mb-1 uppercase text-start">
+                              Social Feed Posts (Up to 3 updates)
+                            </label>
+                            <input 
+                              type="text" 
+                              value={newPlayerSocialFeed1} 
+                              onChange={e => setNewPlayerSocialFeed1(e.target.value)} 
+                              placeholder="Post 1" 
+                              className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                            />
+                            <input 
+                              type="text" 
+                              value={newPlayerSocialFeed2} 
+                              onChange={e => setNewPlayerSocialFeed2(e.target.value)} 
+                              placeholder="Post 2" 
+                              className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                            />
+                            <input 
+                              type="text" 
+                              value={newPlayerSocialFeed3} 
+                              onChange={e => setNewPlayerSocialFeed3(e.target.value)} 
+                              placeholder="Post 3" 
+                              className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2 rounded-xl text-white text-xs" 
+                            />
+                          </div>
+
                           <div>
                             <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
                               Player Photo
@@ -1950,6 +2542,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                           <div>
                             <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
+                              Highlight Video URL
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. https://www.w3schools.com/html/mov_bbb.mp4"
+                              value={newPlayerHighlightUrl}
+                              onChange={(e) => setNewPlayerHighlightUrl(e.target.value)}
+                              className="w-full bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2.5 rounded-xl text-white text-start"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-gray-400 font-bold block mb-1.5 uppercase text-start">
                               {t("admin", "bio")}
                             </label>
                             <textarea
@@ -1961,7 +2565,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                           <button
                             type="submit"
-                            className="w-full py-3 bg-brand-orange hover:bg-brand-burnt text-brand-black font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                            className="w-full py-3 bg-brand-orange hover:bg-brand-burnt text-brand-black font-display font-black text-[10px] tracking-widest uppercase rounded-xl transition-all shadow-lg shadow-brand-orange/15 cursor-pointer mt-4"
                           >
                             {t("admin", "confirmContract")}
                           </button>
@@ -2095,17 +2699,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <>
                               <div className={`flex items-center gap-3 ${isRtl ? "flex-row-reverse text-right" : "text-left"}`}>
                                 <div className="w-10 h-10 rounded bg-white/5 overflow-hidden flex-shrink-0">
-                                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                  <img src={item.image} alt={item.name} className={`w-full h-full object-cover ${item.is_locked ? "grayscale opacity-40" : ""}`} />
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-brand-gold uppercase font-bold">
                                     {getCategoryLabel(item.category)} • {t("shop", "stock")}: {item.stock}
+                                    {item.is_locked && <span className="ml-2 text-red-500 font-extrabold">[LOCKED]</span>}
                                   </span>
-                                  <h5 className="font-bold text-white text-sm leading-none mt-1">{item.name}</h5>
+                                  <h5 className={`font-bold text-white text-sm leading-none mt-1 ${item.is_locked ? "line-through opacity-50" : ""}`}>{item.name}</h5>
                                 </div>
                               </div>
                               <div className="flex items-center gap-4 text-xs font-bold">
                                 <span className="text-white">Rp {item.price.toLocaleString('id-ID')}</span>
+                                <button 
+                                  onClick={() => handleToggleLockMerch(item)} 
+                                  className={`cursor-pointer transition-colors ${item.is_locked ? "text-red-500 hover:text-red-400" : "text-gray-400 hover:text-white"}`}
+                                  title={item.is_locked ? "Unlock Product" : "Lock Product"}
+                                >
+                                  {item.is_locked ? <Lock size={14} /> : <Unlock size={14} />}
+                                </button>
                                 <button onClick={() => startEditMerch(item)} className="text-gray-400 hover:text-white cursor-pointer">
                                   <Pencil size={14} />
                                 </button>
@@ -2619,12 +3231,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </h5>
                       </div>
                       <div className="p-4 space-y-3">
-                        {useAppStore.getState().bookedTickets.length === 0 ? (
+                        {(useAppStore.getState().bookedTickets || []).length === 0 ? (
                           <div className="text-center py-6 text-gray-500 text-xs font-bold uppercase tracking-widest">
                             {language === "id" ? "Belum ada tiket yang dipesan." : "No tickets booked yet."}
                           </div>
                         ) : (
-                          useAppStore.getState().bookedTickets.map((ticket, idx) => (
+                          (useAppStore.getState().bookedTickets || []).map((ticket, idx) => (
                             <div key={idx} className={`flex items-center justify-between bg-black/40 border border-white/5 p-3 rounded-xl ${isRtl ? "flex-row-reverse" : ""}`}>
                               <div>
                                 <span className="text-[10px] text-gray-400 font-bold block">
@@ -2639,6 +3251,56 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           ))
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. ACTIVE USERS PANEL */}
+                {activeTab === "active_users" && (
+                  <div className="space-y-6 text-start">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <h4 className="font-title font-extrabold uppercase text-white text-sm flex items-center gap-2">
+                        <Users size={16} className="text-brand-orange" />
+                        {language === "id" ? "Pengguna yang Sedang Online" : "Active Online Users"}
+                      </h4>
+                      <div className="text-[10px] font-bold text-brand-orange bg-brand-orange/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        {activeSessions.length} {language === "id" ? "Online" : "Active"}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {activeSessions.length === 0 ? (
+                        <div className="col-span-full text-center py-12 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                          {language === "id" ? "Tidak ada pengguna online." : "No users online right now."}
+                        </div>
+                      ) : (
+                        activeSessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className="bg-white/2 border border-white/5 p-4 rounded-2xl flex items-center gap-3 hover:border-brand-orange/30 transition-all"
+                          >
+                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                              <img
+                                src={session.avatar}
+                                alt={session.username}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-bold text-white text-xs truncate">
+                                {session.username}
+                              </h5>
+                              <span className="text-[9px] text-gray-500 block uppercase font-mono mt-0.5">
+                                ID: {session.id.slice(0, 8)}...
+                              </span>
+                            </div>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}

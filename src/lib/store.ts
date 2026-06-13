@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Language } from './i18n';
 
 export interface CartItem {
@@ -73,7 +74,9 @@ const MOCK_BADGES = [
   { id: 'early', name: 'Early Fan', icon: '🔥', description: 'Joined the Vortex community.', unlockedAt: new Date().toISOString() }
 ];
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   // i18n implementation
   language: 'en',
   setLanguage: (lang) => {
@@ -139,11 +142,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFirebaseUser: (user) => {
     set(state => {
       if (user) {
+        const fanState = state.fan || {
+          username: 'COURT_CRUSADER',
+          avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=hoops',
+          level: 1,
+          xp: 25,
+          badges: MOCK_BADGES
+        };
         // Automatically sync Fan Profile to Google User
         return {
           firebaseUser: user,
           fan: {
-            ...state.fan,
+            ...fanState,
             username: user.displayName || 'Google Fan',
             avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.displayName}`
           }
@@ -166,9 +176,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   addXP: (amount) => {
     set(state => {
-      const newXP = state.fan.xp + amount;
-      const nextLevelThreshold = state.fan.level * 100;
-      let newLevel = state.fan.level;
+      const fanState = state.fan || {
+        username: 'COURT_CRUSADER',
+        avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=hoops',
+        level: 1,
+        xp: 25,
+        badges: MOCK_BADGES
+      };
+      const newXP = (fanState.xp ?? 0) + amount;
+      const nextLevelThreshold = (fanState.level ?? 1) * 100;
+      let newLevel = fanState.level ?? 1;
       let levelUpToast = false;
 
       if (newXP >= nextLevelThreshold) {
@@ -192,7 +209,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       return {
         fan: {
-          ...state.fan,
+          ...fanState,
           xp: newXP,
           level: newLevel
         }
@@ -201,7 +218,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   unlockBadge: (badgeId, badgeName, icon, description) => {
     set(state => {
-      if (state.fan.badges.some(b => b.id === badgeId)) return {};
+      const fanState = state.fan || {
+        username: 'COURT_CRUSADER',
+        avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=hoops',
+        level: 1,
+        xp: 25,
+        badges: MOCK_BADGES
+      };
+      const badges = fanState.badges || [];
+      if (badges.some(b => b.id === badgeId)) return {};
       
       const newBadge = {
         id: badgeId,
@@ -217,8 +242,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       return {
         fan: {
-          ...state.fan,
-          badges: [...state.fan.badges, newBadge]
+          ...fanState,
+          badges: [...badges, newBadge]
         }
       };
     });
@@ -277,5 +302,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeToast: (id) => set(state => ({
     toasts: state.toasts.filter(t => t.id !== id)
   }))
-}));
+    }),
+    {
+      name: 'premium-hoops-storage',
+      partialize: (state) => ({
+        cart: state.cart,
+        fan: state.fan,
+        bookedTickets: state.bookedTickets,
+        firebaseUser: state.firebaseUser,
+        language: state.language,
+      }),
+    }
+  )
+);
 export default useAppStore;

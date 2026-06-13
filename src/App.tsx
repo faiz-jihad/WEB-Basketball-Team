@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Globe, Key } from 'lucide-react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './lib/firebase';
+import { auth, setupMessageListener, requestNotificationPermission } from './lib/firebase';
+import db from './lib/supabase';
 import useAppStore from './lib/store';
 import { getTranslation } from './lib/i18n';
+import { useRef } from 'react';
 
 // Importing Custom Sections
 import CustomCursor from './components/CustomCursor';
@@ -25,6 +27,10 @@ import AdminPortal from './components/AdminPortal';
 import ToastContainer from './components/ToastContainer';
 import ErrorBoundary from './components/ErrorBoundary';
 import AccountPage from './components/AccountPage';
+import TermsPage from './components/TermsPage';
+import PrivacyPage from './components/PrivacyPage';
+import ContactPage from './components/ContactPage';
+import { MobileBottomNav } from './components/MobileBottomNav';
 
 // Scroll To Top Component for smooth page transition resets
 function ScrollToTop() {
@@ -119,13 +125,88 @@ function App() {
   const setFirebaseUser = useAppStore(state => state.setFirebaseUser);
   const language = useAppStore(state => state.language);
   const setLanguage = useAppStore(state => state.setLanguage);
+  const addToast = useAppStore(state => state.addToast);
+
+  const currentUserRef = useRef<string | null>(null);
+
+  // FCM Setup
+  useEffect(() => {
+    // Request permission and get token
+    requestNotificationPermission().then(token => {
+      if (token) {
+        // In a real app, save this token to the user's profile in the database
+        console.log("FCM Push Notifications Enabled");
+      }
+    });
+
+    // Listen for foreground messages
+    const unsubscribeFCM = setupMessageListener((payload: any) => {
+      console.log('Received foreground message', payload);
+      const title = payload.notification?.title || 'BSQ Notification';
+      const body = payload.notification?.body || '';
+      addToast('info', title, body);
+    });
+
+    return () => unsubscribeFCM();
+  }, [addToast]);
+
+  // Sync document direction and lang on language state changes (including hydration)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   useEffect(() => {
+    if (!auth) return;
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
+      if (user) {
+        setFirebaseUser(user);
+      } else {
+        // Safe guard: Do not clear mock logins on auth state changes
+        const currentStoredUser = useAppStore.getState().firebaseUser;
+        if (currentStoredUser && currentStoredUser.isMock) {
+          return;
+        }
+        setFirebaseUser(null);
+      }
     });
-    return () => unsubscribe();
+
+    const handleUnload = () => {
+      if (currentUserRef.current) {
+        db.from('active_sessions').delete().eq('id', currentUserRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('beforeunload', handleUnload);
+    };
   }, [setFirebaseUser]);
+
+  // Synchronize active_sessions in database when firebaseUser changes
+  useEffect(() => {
+    if (firebaseUser) {
+      const uid = firebaseUser.uid;
+      currentUserRef.current = uid;
+      db.from('active_sessions').delete().eq('id', uid).then(() => {
+        db.from('active_sessions').insert({
+          id: uid,
+          username: firebaseUser.displayName || 'Google Fan',
+          avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${firebaseUser.displayName || 'Google Fan'}`,
+          last_active: new Date().toISOString()
+        });
+      });
+    } else {
+      if (currentUserRef.current) {
+        db.from('active_sessions').delete().eq('id', currentUserRef.current);
+        currentUserRef.current = null;
+      }
+    }
+  }, [firebaseUser]);
 
   const [scrolled, setScrolled] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -162,7 +243,7 @@ function App() {
     };
   }, []);
 
-  const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCartCount = (cart || []).reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className={`relative min-h-screen bg-brand-black text-gray-100 overflow-x-hidden ${isRtl ? 'font-arabic text-right' : 'text-left'}`}>
@@ -237,7 +318,7 @@ function App() {
                     key={lang}
                     onClick={() => setLanguage(lang)}
                     className={`w-full px-4 py-2 hover:bg-brand-orange/15 hover:text-brand-orange transition-colors uppercase font-bold text-center ${
-                      language === lang ? 'text-brand-orange bg-brand-orange/5' : 'text-gray-405'
+                      language === lang ? 'text-brand-orange bg-brand-orange/5' : 'text-gray-400'
                     }`}
                   >
                     {lang === 'en' ? 'English' : lang === 'id' ? 'Bahasa' : 'العربية'}
@@ -250,13 +331,13 @@ function App() {
             <NavLink to="/account" className={`hidden sm:flex items-center gap-2 bg-white/2 hover:bg-brand-orange/15 hover:border-brand-orange/30 border border-white/10 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
               <div className="w-5 h-5 rounded overflow-hidden bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange text-xs">
                 {firebaseUser ? (
-                  <img src={fan.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={fan?.avatar || ''} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   '⭐'
                 )}
               </div>
               <span className="text-[10px] font-bold font-display uppercase tracking-wider text-gray-300">
-                {firebaseUser ? fan.username : t('fan', 'level') + ' ' + fan.level}
+                {firebaseUser ? (fan?.username || 'Google Fan') : t('fan', 'level') + ' ' + (fan?.level || 1)}
               </span>
             </NavLink>
 
@@ -278,7 +359,7 @@ function App() {
       </nav>
 
       {/* Main Pages Router with AnimatePresence Page Transitions */}
-      <main className="min-h-screen pt-20">
+      <main className="min-h-screen pt-20 pb-24 lg:pb-0">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<HomePage />} />
@@ -287,12 +368,17 @@ function App() {
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/account" element={<ProfilePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
           </Routes>
         </AnimatePresence>
       </main>
 
+      <MobileBottomNav />
+
       {/* 11. Footer details */}
-      <footer className="bg-bg-darker border-t border-white/5 py-12 px-6 font-display">
+      <footer className="bg-bg-darker border-t border-white/5 py-12 px-6 font-display pb-28 lg:pb-12">
         <div className={`max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-gray-500 ${isRtl ? 'md:flex-row-reverse text-right' : ''}`}>
           <div className={`flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
             <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
@@ -301,9 +387,9 @@ function App() {
             <span>© 2026 BSQ ALL-FIVE Basketball Club. All Rights Reserved.</span>
           </div>
           <div className={`flex gap-6 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#contact" className="hover:text-white transition-colors">Media Relations</a>
+            <NavLink to="/privacy" className="hover:text-white transition-colors">Privacy Policy</NavLink>
+            <NavLink to="/terms" className="hover:text-white transition-colors">Terms of Service</NavLink>
+            <NavLink to="/contact" className="hover:text-white transition-colors">Media Relations</NavLink>
             <a href="#admin" onClick={(e) => { e.preventDefault(); setIsAdminOpen(true); }} className="hover:text-brand-orange transition-colors flex items-center gap-1.5">
               <Key size={12} className="text-brand-orange" />
               <span>{t('admin', 'console')}</span>
@@ -317,7 +403,7 @@ function App() {
 
       {/* Admin Panel Modal Overlay */}
       <ErrorBoundary>
-        <AdminPortal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+        <AdminPortal isOpen={isAdminOpen} onClose={() => { setIsAdminOpen(false); window.location.reload(); }} />
       </ErrorBoundary>
 
     </div>

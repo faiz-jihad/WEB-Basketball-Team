@@ -14,7 +14,18 @@ export const PlayerInfinitySlider: React.FC = () => {
 
   useEffect(() => {
     db.from('players').select('*').then(({ data }: any) => {
-      if (data) setPlayers(data as Player[]);
+      if (data && data.length > 0) {
+        setPlayers(data as Player[]);
+      } else {
+        const localVal = localStorage.getItem('bsq_db_v2_players');
+        const localPlayers = localVal ? JSON.parse(localVal) : [];
+        setPlayers(localPlayers as Player[]);
+      }
+    }).catch((err: any) => {
+      console.error("PlayerInfinitySlider: error fetching players", err);
+      const localVal = localStorage.getItem('bsq_db_v2_players');
+      const localPlayers = localVal ? JSON.parse(localVal) : [];
+      setPlayers(localPlayers as Player[]);
     });
   }, []);
 

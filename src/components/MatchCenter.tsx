@@ -60,8 +60,9 @@ export const MatchCenter: React.FC = () => {
     window.addEventListener('bsq_standings_updated', fetchStandings);
 
     // Subscribe to simulated Live match score updates!
-    const channel = (db as any).channel('matches:UPDATE')
-      .on('postgres_changes' as any, { event: 'UPDATE', table: 'matches' }, (payload: any) => {
+    const channelName = `matches_update_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const channel = (db as any).channel(channelName)
+      .on('postgres_changes' as any, { event: 'UPDATE', table: 'matches', schema: 'public' }, (payload: any) => {
         setMatches((prevMatches) => {
           const updated = prevMatches.map(m => m.id === payload.new.id ? payload.new : m);
           
@@ -80,7 +81,9 @@ export const MatchCenter: React.FC = () => {
       .subscribe();
 
     return () => {
-      channel?.unsubscribe?.();
+      if (channel && typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
       window.removeEventListener('bsq_matches_updated', fetchMatches);
       window.removeEventListener('bsq_standings_updated', fetchStandings);
     };
@@ -183,7 +186,12 @@ export const MatchCenter: React.FC = () => {
                     <div className="flex items-center gap-4 px-6 py-2 bg-white/2 border border-white/5 rounded-2xl">
                       {match.status === 'UPCOMING' ? (
                         <span className="text-sm font-display text-gray-400 font-bold whitespace-nowrap">
-                          {new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {(() => {
+                            const d = new Date(match.date);
+                            return isNaN(d.getTime()) 
+                              ? 'TBD' 
+                              : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                          })()}
                         </span>
                       ) : (
                         <div className="flex items-center gap-3 font-title font-black text-2xl sm:text-3xl text-white">
@@ -309,15 +317,15 @@ export const MatchCenter: React.FC = () => {
                         </td>
                         <td className="py-3.5 flex items-center gap-2 font-semibold">
                           {isVortex && <Flame size={14} className="text-brand-orange fill-brand-orange/20 flex-shrink-0" />}
-                          {team.team_name}
+                          {team.team_name || 'Unknown Team'}
                         </td>
-                        <td className="py-3.5 text-center font-bold">{team.wins}</td>
-                        <td className="py-3.5 text-center font-bold text-gray-500">{team.losses}</td>
-                        <td className="py-3.5 text-center font-black text-white">{team.points}</td>
+                        <td className="py-3.5 text-center font-bold">{team.wins ?? 0}</td>
+                        <td className="py-3.5 text-center font-bold text-gray-500">{team.losses ?? 0}</td>
+                        <td className="py-3.5 text-center font-black text-white">{team.points ?? 0}</td>
                         <td className={`py-3.5 text-center font-bold text-[10px] ${
-                          team.streak.startsWith('W') ? 'text-green-500' : 'text-red-500'
+                          (team.streak && typeof team.streak === 'string' && team.streak.startsWith('W')) ? 'text-green-500' : 'text-red-500'
                         }`}>
-                          {team.streak}
+                          {team.streak || '-'}
                         </td>
                       </tr>
                     );

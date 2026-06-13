@@ -88,6 +88,13 @@ const playSound = (type: 'click' | 'whoosh' | 'success' | 'laser' | 'draft', ena
   }
 };
 
+const getYoutubeId = (url: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 // Performant GSAP-driven counting stats component to avoid React render lags on hover
 const StatCounter: React.FC<{ value: number; active: boolean }> = ({ value, active }) => {
   const ref = useRef<HTMLSpanElement>(null);
@@ -166,54 +173,96 @@ export const PlayerShowcase: React.FC = () => {
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
 
+  const fan = useAppStore(state => state.fan);
+  const lineupKey = fan?.username ? `bsq_dream_lineup_${fan.username.toLowerCase()}` : 'bsq_dream_lineup';
+  const lockKey = fan?.username ? `bsq_dream_lineup_locked_${fan.username.toLowerCase()}` : 'bsq_dream_lineup_locked';
+
   useEffect(() => {
-    // Fetch players
-    db.from('players').select('*').then(({ data }: any) => {
-      if (data) setPlayers(data as Player[]);
-    });
+    const fetchPlayers = () => {
+      db.from('players').select('*').then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setPlayers(data as Player[]);
+        } else {
+          const localVal = localStorage.getItem('bsq_db_v2_players');
+          const localPlayers = localVal ? JSON.parse(localVal) : [];
+          setPlayers(localPlayers as Player[]);
+        }
+      }).catch((err: any) => {
+        console.error("PlayerShowcase: error fetching players", err);
+        const localVal = localStorage.getItem('bsq_db_v2_players');
+        const localPlayers = localVal ? JSON.parse(localVal) : [];
+        setPlayers(localPlayers as Player[]);
+      });
+    };
+
+    fetchPlayers();
+
+    window.addEventListener('bsq_players_updated', fetchPlayers);
 
     // Fetch manager
     db.from('manager').select('*').then(({ data }: any) => {
-      if (data && data[0]) setManager(data[0]);
+      if (data && data[0]) {
+        setManager(data[0]);
+      } else {
+        const localVal = localStorage.getItem('bsq_db_v2_manager');
+        const localManager = localVal ? JSON.parse(localVal) : [];
+        if (localManager && localManager[0]) {
+          setManager(localManager[0]);
+        }
+      }
+    }).catch(() => {
+      const localVal = localStorage.getItem('bsq_db_v2_manager');
+      const localManager = localVal ? JSON.parse(localVal) : [];
+      if (localManager && localManager[0]) setManager(localManager[0]);
     });
 
     // Subscribe to manager updates
-    const channel = db.channel('manager:UPDATE')
-      .on('postgres_changes' as any, { event: 'UPDATE', table: 'manager' }, (payload: any) => {
+    const channelName = `manager_update_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const channel = db.channel(channelName)
+      .on('postgres_changes' as any, { event: 'UPDATE', table: 'manager', schema: 'public' }, (payload: any) => {
         setManager(payload.new);
       })
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      if (channel && typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
+      window.removeEventListener('bsq_players_updated', fetchPlayers);
     };
   }, []);
 
   // Restore Lineup from Storage on load
   useEffect(() => {
     if (players.length > 0) {
-      const savedLineup = localStorage.getItem('bsq_dream_lineup');
-      const savedLock = localStorage.getItem('bsq_dream_lineup_locked');
+      const savedLineup = localStorage.getItem(lineupKey);
+      const savedLock = localStorage.getItem(lockKey);
       if (savedLineup) {
         try {
           const parsed = JSON.parse(savedLineup);
           const reconstructed: any = {};
           for (const pos of ['PG', 'SG', 'SF', 'PF', 'C'] as const) {
             if (parsed[pos]) {
-              const matched = players.find(p => p.id === parsed[pos]);
+              let matched = players.find(p => p.id === parsed[pos]);
+              if (!matched) {
+                // Fallback: match by position if exact ID from localStorage doesn't exist anymore
+                matched = players.find(p => p.position.toUpperCase() === pos);
+              }
               if (matched) reconstructed[pos] = matched;
             }
           }
-          setLineup(prev => ({ ...prev, ...reconstructed }));
-          if (savedLock === 'true') {
-            setIsLineupLocked(true);
-          }
+          setLineup(prev => ({ PG: null, SG: null, SF: null, PF: null, C: null, ...reconstructed }));
+          setIsLineupLocked(savedLock === 'true');
         } catch (e) {
           console.error('Error restoring lineup:', e);
         }
+      } else {
+        // Clear lineup and unlock for new session/user with no saved lineup
+        setLineup({ PG: null, SG: null, SF: null, PF: null, C: null });
+        setIsLineupLocked(false);
       }
     }
-  }, [players]);
+  }, [players, lineupKey, lockKey]);
 
   // Handle SFX volume state persistence
   const toggleSfx = () => {
@@ -378,7 +427,8 @@ export const PlayerShowcase: React.FC = () => {
     Object.keys(updated).forEach(k => {
       idsMap[k] = updated[k as 'PG' | 'SG' | 'SF' | 'PF' | 'C']?.id || null;
     });
-    localStorage.setItem('bsq_dream_lineup', JSON.stringify(idsMap));
+    localStorage.setItem(lineupKey, JSON.stringify(idsMap));
+    window.dispatchEvent(new CustomEvent('bsq_dream_lineup_updated'));
 
     // Stagger animation on court node addition
     setTimeout(() => {
@@ -406,7 +456,8 @@ export const PlayerShowcase: React.FC = () => {
     Object.keys(updated).forEach(k => {
       idsMap[k] = updated[k as 'PG' | 'SG' | 'SF' | 'PF' | 'C']?.id || null;
     });
-    localStorage.setItem('bsq_dream_lineup', JSON.stringify(idsMap));
+    localStorage.setItem(lineupKey, JSON.stringify(idsMap));
+    window.dispatchEvent(new CustomEvent('bsq_dream_lineup_updated'));
 
     addToast('info', 'Slot Cleared', `${position} slot is now vacant.`);
   };
@@ -415,7 +466,7 @@ export const PlayerShowcase: React.FC = () => {
     if (isLineupLocked) {
       playSound('click', sfxEnabled);
       setIsLineupLocked(false);
-      localStorage.setItem('bsq_dream_lineup_locked', 'false');
+      localStorage.setItem(lockKey, 'false');
     } else {
       // Check if starting 5 is complete
       const complete = Object.values(lineup).every(Boolean);
@@ -427,7 +478,7 @@ export const PlayerShowcase: React.FC = () => {
 
       playSound('success', sfxEnabled);
       setIsLineupLocked(true);
-      localStorage.setItem('bsq_dream_lineup_locked', 'true');
+      localStorage.setItem(lockKey, 'true');
 
       // GSAP energy line sweep animation
       gsap.fromTo('.court-energy-line',
@@ -495,15 +546,67 @@ export const PlayerShowcase: React.FC = () => {
   const matchAdv = getCompareAdvantage();
 
   // Mock Achievements
-  const getAchievements = (pId: string) => {
-    const achievementsMap: { [key: string]: string[] } = {
-      p1: ['2x Finals MVP', '3x All-Star', 'All-NBA First Team (2024)', 'Steals Leader (2025)'],
-      p2: ['3-Point Contest Champion (2024)', '4x All-Star', 'All-NBA Second Team (2025)', 'Most Improved Player (2021)'],
-      p3: ['Defensive Player of the Year (2025)', '3x All-Defensive First Team', 'NBA Champion (2024, 2025)', 'Teammate of the Year (2024)'],
-      p4: ['Slam Dunk Contest Winner (2023)', '1x All-Star', 'All-Rookie First Team (2022)', 'NBA Champion (2025)'],
-      p5: ['Blocks Leader (2024, 2025)', '1x All-Star', 'All-Defensive Second Team (2023)', 'Rebounds Leader (2025)']
-    };
-    return achievementsMap[pId] || ['NBA Professional Player', 'VBC Core Team Member'];
+  const getAchievements = (player: Player) => {
+    // If the player has database-customized awards, prioritize them!
+    if (player.awards && player.awards.length > 0) {
+      return player.awards;
+    }
+    const nameLower = player.name.toLowerCase();
+    
+    // Hardcoded achievements for the original mock players by matching their names
+    if (nameLower.includes('marcus')) {
+      return ['2x Finals MVP', '3x All-Star', 'All-NBA First Team (2024)', 'Steals Leader (2025)'];
+    }
+    if (nameLower.includes('candra')) {
+      return ['3-Point Contest Champion (2024)', '4x All-Star', 'All-NBA Second Team (2025)', 'Most Improved Player (2021)'];
+    }
+    if (nameLower.includes('fikri')) {
+      return ['Defensive Player of the Year (2025)', '3x All-Defensive First Team', 'NBA Champion (2024, 2025)', 'Teammate of the Year (2024)'];
+    }
+    if (nameLower.includes('rian')) {
+      return ['Slam Dunk Contest Winner (2023)', '1x All-Star', 'All-Rookie First Team (2022)', 'NBA Champion (2025)'];
+    }
+    if (nameLower.includes('bagas')) {
+      return ['Blocks Leader (2024, 2025)', '1x All-Star', 'All-Defensive Second Team (2023)', 'Rebounds Leader (2025)'];
+    }
+
+    // Dynamic generation based on position, number, stats
+    const list: string[] = [];
+    
+    // MVP / All-Star logic based on PPG
+    if (player.stats.ppg >= 18) {
+      list.push('DBL League MVP (2025)');
+      list.push('2x All-Star First Team');
+    } else if (player.stats.ppg >= 14) {
+      list.push('DBL All-Star Selected (2025)');
+      list.push('All-Tournament First Team (2024)');
+    } else {
+      list.push('Most Improved Player Candidate');
+      list.push('All-Tournament Honorable Mention');
+    }
+
+    // Position-specific achievements
+    if (player.position === 'PG') {
+      list.push(player.stats.apg >= 6 ? 'League Assists Leader (2025)' : 'Elite Playmaker of the Year');
+      list.push('Clutch Assist Trophy');
+    } else if (player.position === 'SG') {
+      list.push('Three-Point Contest Champion (2025)');
+      list.push('Perimeter Shooting Honors');
+    } else if (player.position === 'SF') {
+      list.push(player.stats.spg >= 1.5 ? 'All-Defensive First Team (2025)' : 'Two-Way Impact Player');
+      list.push('Highlight Dunk of the Year');
+    } else if (player.position === 'PF') {
+      list.push(player.stats.rpg >= 8 ? 'Rebounding Title (2025)' : 'Interior Force Award');
+      list.push('High-Percentage Finisher');
+    } else if (player.position === 'C') {
+      list.push(player.stats.bpg >= 2.0 ? 'Defensive Player of the Year (2025)' : 'Rim Protector of the Year');
+      list.push('Double-Double Machine Record');
+    }
+
+    // Jersey number legacy
+    list.push(`Jersey #${player.number} Franchise Legacy Award`);
+
+    return list;
   };
 
   return (
@@ -600,7 +703,7 @@ export const PlayerShowcase: React.FC = () => {
         </div>
 
         {/* Roster Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-24">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6 mb-24">
           {filteredPlayers.map((player) => {
             const isSelectedForCompare = compareList.some(p => p.id === player.id);
             const isDrafted = Object.values(lineup).some(p => p?.id === player.id);
@@ -612,7 +715,7 @@ export const PlayerShowcase: React.FC = () => {
                 onMouseLeave={() => setHoveredPlayerId(null)}
                 onMouseMove={handleMouseMove}
                 onClick={() => handleCardClick(player)}
-                className={`player-card group bg-bg-card border rounded-3xl overflow-hidden cursor-pointer relative aspect-[3/4] flex flex-col justify-end p-5 transition-all duration-300 ${
+                className={`player-card group bg-bg-card border rounded-3xl overflow-hidden cursor-pointer relative aspect-[3/4] flex flex-col justify-end p-3 sm:p-5 transition-all duration-300 ${
                   isSelectedForCompare ? 'border-brand-orange glow-orange' : 'border-white/5 hover:border-brand-orange/20'
                 }`}
                 style={{ transformStyle: 'preserve-3d' }}
@@ -695,7 +798,7 @@ export const PlayerShowcase: React.FC = () => {
                   <span className="text-brand-gold font-display text-[9px] font-black tracking-widest uppercase block mb-1">
                     {player.position}
                   </span>
-                  <h3 className="text-xl font-title font-extrabold uppercase text-white leading-none">
+                  <h3 className="text-base sm:text-xl font-title font-extrabold uppercase text-white leading-none">
                     {player.name.split(' "')[0]}
                   </h3>
                   
@@ -1352,7 +1455,10 @@ export const PlayerShowcase: React.FC = () => {
               className="relative max-w-4xl w-full h-[90vh] md:h-auto md:min-h-[550px] bg-bg-dark border border-brand-orange/20 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
             >
               <button
-                onClick={() => setSelectedPlayer(null)}
+                onClick={() => {
+                  setSelectedPlayer(null);
+                  window.location.reload();
+                }}
                 className="absolute top-6 right-6 p-2.5 bg-black/60 hover:bg-brand-orange hover:text-brand-black text-white rounded-full transition-all z-50 border border-white/5 cursor-pointer"
               >
                 <X size={20} />
@@ -1470,8 +1576,8 @@ export const PlayerShowcase: React.FC = () => {
 
                     {/* Achievements */}
                     {activeTab === 'achieve' && (
-                      <ul className="space-y-3">
-                        {getAchievements(selectedPlayer.id).map((award, i) => (
+                      <ul className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                        {getAchievements(selectedPlayer).map((award, i) => (
                           <li key={i} className="flex items-center gap-3 bg-white/2 p-3 border border-white/5 rounded-xl text-xs text-white text-start animate-fade-in">
                             <Award size={16} className="text-brand-orange flex-shrink-0" />
                             <span>{award}</span>
@@ -1482,58 +1588,130 @@ export const PlayerShowcase: React.FC = () => {
 
                     {/* Highlights */}
                     {activeTab === 'video' && (
-                      <div className="bg-black/40 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                        <div className="w-12 h-12 rounded-full bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-brand-orange mb-3">
-                          <Play size={20} fill="#FF5A00" />
+                      <div className="space-y-4">
+                        <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black shadow-lg">
+                          {selectedPlayer.highlight_url ? (
+                            (() => {
+                              const ytId = getYoutubeId(selectedPlayer.highlight_url);
+                              if (ytId) {
+                                return (
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${ytId}?rel=0`}
+                                    title={`${selectedPlayer.name} Highlight Video`}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    className="w-full h-full"
+                                  />
+                                );
+                              }
+                              return (
+                                <video
+                                  src={selectedPlayer.highlight_url}
+                                  controls
+                                  className="w-full h-full object-cover"
+                                  poster={selectedPlayer.photo}
+                                  playsInline
+                                />
+                              );
+                            })()
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white/2">
+                              <Play size={32} className="text-gray-500 mb-2" />
+                              <p className="text-xs text-gray-400">No highlight video available for this player.</p>
+                            </div>
+                          )}
                         </div>
-                        <h4 className="text-sm font-bold text-white">Watch Highlight Reel</h4>
-                        <p className="text-xs text-gray-500 max-w-xs mt-1">
-                          Plays from 2024-2025 championships showcasing defensive lockouts and drives.
-                        </p>
-                        <button
-                          onClick={() => {
-                            playSound('click', sfxEnabled);
-                            setSelectedPlayer(null);
-                            const rosterEl = document.getElementById('roster');
-                            rosterEl?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className="mt-4 px-4 py-2.5 bg-brand-orange text-brand-black text-[10px] font-display font-black tracking-widest rounded-lg uppercase cursor-pointer"
-                        >
-                          Open playbook player
-                        </button>
+                        <div className="text-start">
+                          <h4 className="text-xs font-title font-black uppercase text-brand-orange">
+                            Highlight Reel • Season 2024-2025
+                          </h4>
+                          <p className="text-[10px] text-gray-500 font-display mt-1 leading-relaxed">
+                            Watch {selectedPlayer.name.split(' "')[0]}'s key defensive plays, court assists, and clutch scoring clips.
+                          </p>
+                        </div>
                       </div>
                     )}
 
                     {/* Social links */}
                     {activeTab === 'social' && (
-                      <div className="grid grid-cols-3 gap-4">
-                        <a 
-                          href="https://www.instagram.com/bsq_crb/" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex flex-col items-center justify-center bg-white/2 border border-white/5 rounded-2xl p-4 hover:border-brand-orange/30 transition-all text-gray-400 hover:text-white"
-                        >
-                          <Instagram size={24} className="text-brand-orange mb-2" />
-                          <span className="text-[10px] font-bold font-display">@bsq_crb</span>
-                        </a>
-                        <a 
-                          href="https://x.com/bsq_crb" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex flex-col items-center justify-center bg-white/2 border border-white/5 rounded-2xl p-4 hover:border-brand-orange/30 transition-all text-gray-400 hover:text-white"
-                        >
-                          <Twitter size={24} className="text-brand-gold mb-2" />
-                          <span className="text-[10px] font-bold font-display">@bsq_crb</span>
-                        </a>
-                        <a 
-                          href="https://www.instagram.com/bsq_crb/" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex flex-col items-center justify-center bg-white/2 border border-white/5 rounded-2xl p-4 hover:border-brand-orange/30 transition-all text-gray-400 hover:text-white"
-                        >
-                          <Dribbble size={24} className="text-brand-burnt mb-2" />
-                          <span className="text-[10px] font-bold font-display">bsq_crb</span>
-                        </a>
+                      <div className="space-y-4">
+                        {/* Profile Header */}
+                        <div className="flex items-center justify-between bg-white/2 p-3 border border-white/5 rounded-2xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-brand-orange/30 flex-shrink-0">
+                              <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="text-start">
+                              <h4 className="text-xs font-bold text-white leading-none">{selectedPlayer.name.split(' "')[0]}</h4>
+                              <span className="text-[10px] text-brand-orange font-mono">
+                                @{selectedPlayer.social_handle || selectedPlayer.name.toLowerCase().split(' ').join('_').replace(/[^a-z0-9_]/g, '')}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-white block">
+                              {selectedPlayer.followers || (Math.round(selectedPlayer.stats.ppg * 12.5) + 'K')}
+                            </span>
+                            <span className="text-[8px] text-gray-500 font-display block uppercase">Followers</span>
+                          </div>
+                        </div>
+
+                        {/* Feed Posts */}
+                        <div className="space-y-3 max-h-[160px] overflow-y-auto pr-1">
+                          {(selectedPlayer.social_feed && selectedPlayer.social_feed.filter(Boolean).length > 0
+                            ? selectedPlayer.social_feed.filter(Boolean).map((postText, index) => ({
+                                id: index + 1,
+                                time: index === 0 ? '3 hours ago' : index === 1 ? '1 day ago' : '3 days ago',
+                                text: postText,
+                                likes: Math.round(selectedPlayer.stats.ppg * (150 - index * 30))
+                              }))
+                            : [
+                                {
+                                  id: 1,
+                                  time: '3 hours ago',
+                                  text: `Big win tonight! Shoutout to the home crowd. The energy at the arena was unmatched. Let's keep the streak going! 🏀🔥 #BSQAllFive`,
+                                  likes: Math.round(selectedPlayer.stats.ppg * 150)
+                                },
+                                {
+                                  id: 2,
+                                  time: '1 day ago',
+                                  text: `Appreciate the guidance from Coach Gunawan. Locked in for the next practice. We keep improving daily. 📈💪`,
+                                  likes: Math.round(selectedPlayer.stats.ppg * 90)
+                                },
+                                {
+                                  id: 3,
+                                  time: '3 days ago',
+                                  text: selectedPlayer.position === 'PG' 
+                                    ? `Playmaking feels good. Good to find my teammates in their sweet spots last night! 🎯`
+                                    : selectedPlayer.position === 'SG'
+                                    ? `Left hand, right hand, midrange, corner three... just keep shooting! 🏹`
+                                    : selectedPlayer.position === 'SF'
+                                    ? `Defense wins championships. Locking down the perimeter is my favorite part of the game. 🔒`
+                                    : selectedPlayer.position === 'PF'
+                                    ? `Winning the battle on the boards. Let's dominate the paint. 🛡️`
+                                    : `No easy buckets in my house. Protected the rim and locked it down. ⛔`,
+                                  likes: Math.round(selectedPlayer.stats.ppg * 110)
+                                }
+                              ]
+                          ).map((post) => (
+                            <div key={post.id} className="bg-white/2 border border-white/5 rounded-xl p-3 text-start space-y-2">
+                              <div className="flex justify-between items-center text-[8px] text-gray-500">
+                                <span className="font-mono">@{selectedPlayer.social_handle || selectedPlayer.name.toLowerCase().split(' ').join('_').replace(/[^a-z0-9_]/g, '')}</span>
+                                <span>{post.time}</span>
+                              </div>
+                              <p className="text-xs text-white leading-relaxed">{post.text}</p>
+                              <div className="flex items-center gap-4 text-[9px] text-gray-500 pt-1">
+                                <button className="flex items-center gap-1 hover:text-brand-orange transition-colors animate-pulse-subtle">
+                                  <span>❤️</span> {post.likes}
+                                </button>
+                                <button className="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                                  <span>💬</span> {Math.round(post.likes / 10)}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

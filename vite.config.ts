@@ -10,4 +10,21 @@ export default defineConfig({
     tailwindcss(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
+          animation: ['framer-motion', 'gsap', 'lenis'],
+          firebase: ['firebase/app', 'firebase/messaging'],
+          supabase: ['@supabase/supabase-js'],
+        }
+      }
+    }
+  }
 })

@@ -43,7 +43,13 @@ export const LogoScrollytelling: React.FC = () => {
 
   // Track viewport dimensions dynamically for a pixel-perfect crisp canvas
   useEffect(() => {
+    let lastWidth = window.innerWidth;
     const handleResize = () => {
+      // Ignore height-only resizes on mobile (URL bar collapse) to prevent canvas flicker
+      if (window.innerWidth < 768 && window.innerWidth === lastWidth) {
+        return;
+      }
+      lastWidth = window.innerWidth;
       setDimensions({
         width: window.innerWidth,
         height: window.innerHeight
@@ -53,31 +59,46 @@ export const LogoScrollytelling: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Preload all logo frames
+  // Preload frames progressively
   useEffect(() => {
     let loadedCount = 0;
-    const images: HTMLImageElement[] = [];
+    const images: HTMLImageElement[] = new Array(frameUrls.length);
 
-    frameUrls.forEach((url, index) => {
-      const img = new Image();
-      img.src = url;
-      img.onload = () => {
-        loadedCount++;
-        setProgress(Math.round((loadedCount / frameUrls.length) * 100));
-        if (loadedCount === frameUrls.length) {
-          setIsLoaded(true);
-        }
-      };
-      img.onerror = () => {
-        console.warn(`Could not preload frame logo image at path: ${url}`);
-        loadedCount++;
-        setProgress(Math.round((loadedCount / frameUrls.length) * 100));
-        if (loadedCount === frameUrls.length) {
-          setIsLoaded(true);
-        }
-      };
-      images[index] = img;
-    });
+    if (frameUrls.length === 0) {
+      setIsLoaded(true);
+      return;
+    }
+
+    // Load first frame to unblock UI quickly
+    const loadRemainingFrames = () => {
+      frameUrls.slice(1).forEach((url, index) => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          loadedCount++;
+          setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+        };
+        img.onerror = () => {
+          loadedCount++;
+          setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+        };
+        images[index + 1] = img;
+      });
+    };
+
+    const firstImg = new Image();
+    firstImg.src = frameUrls[0];
+    firstImg.onload = () => {
+      images[0] = firstImg;
+      loadedCount++;
+      setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+      setIsLoaded(true); // Unblock UI immediately after first frame!
+      loadRemainingFrames();
+    };
+    firstImg.onerror = () => {
+      setIsLoaded(true);
+      loadRemainingFrames();
+    };
 
     setPreloadedImages(images);
   }, []);
@@ -94,12 +115,7 @@ export const LogoScrollytelling: React.FC = () => {
     if (img && img.complete) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Calculate responsive logo scale to make it look prominent and "full screen"
-      // Since standard PNG logo frames have transparent margins, we apply a responsive multiplier
-      const isMobile = canvas.width < 768;
-      const multiplier = isMobile ? 1.05 : 1.35;
-      const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * multiplier;
-      
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
       const w = img.width * scale;
       const h = img.height * scale;
       const x = (canvas.width - w) / 2;
@@ -111,8 +127,6 @@ export const LogoScrollytelling: React.FC = () => {
 
   // Setup GSAP scroll pinning and frame index scrub
   useEffect(() => {
-    if (!isLoaded) return;
-
     const totalFrames = frameUrls.length;
     const obj = { frame: 0 };
     
@@ -186,38 +200,18 @@ export const LogoScrollytelling: React.FC = () => {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [isLoaded, isRtl]);
+  }, [isRtl]);
 
   return (
     <div 
       ref={containerRef} 
       className="relative w-full h-screen bg-bg-darker border-b border-white/5 overflow-hidden"
     >
-      {/* Loading Cover */}
-      {!isLoaded && (
-        <div className="absolute inset-0 z-[1000] bg-bg-darker flex flex-col items-center justify-center p-6">
-          <div className="flex flex-col items-center max-w-xs w-full">
-            <div className="w-12 h-12 rounded-full border-2 border-brand-orange/20 border-t-brand-orange animate-spin mb-6" />
-            <span className="text-xs font-display tracking-[0.25em] font-black uppercase text-brand-orange animate-pulse flex items-center gap-1.5">
-              <Sparkles size={14} /> FORGING BRAND LEGACY
-            </span>
-            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-4">
-              <div 
-                className="h-full bg-brand-orange transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-display font-semibold text-brand-gold/60 mt-2 tracking-widest">{progress}% LOADED</span>
-          </div>
-        </div>
-      )}
-
       {/* Main Scrollytelling Container */}
-      {isLoaded && (
-        <div className="w-full h-screen relative flex items-center justify-center">
-          
-          {/* 1. Full-Screen Canvas Image Sequence Background */}
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center z-0 overflow-hidden bg-bg-darker">
+      <div className="w-full h-screen relative flex items-center justify-center">
+        
+        {/* 1. Full-Screen Canvas Image Sequence Background */}
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center z-0 overflow-hidden bg-bg-darker">
             {/* Spotlight Background Glows */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] max-w-[900px] max-h-[900px] rounded-full bg-gradient-radial from-brand-orange/20 to-transparent blur-[140px] pointer-events-none" />
             
@@ -226,18 +220,18 @@ export const LogoScrollytelling: React.FC = () => {
               ref={canvasRef}
               width={dimensions.width}
               height={dimensions.height}
-              className="absolute inset-0 w-full h-full object-cover drop-shadow-[0_0_100px_rgba(255,90,0,0.3)] opacity-85 select-none pointer-events-none transition-all duration-300 scale-100"
+              className={`absolute inset-0 w-full h-full object-cover drop-shadow-[0_0_100px_rgba(255,90,0,0.3)] select-none pointer-events-none transition-all duration-1000 scale-100 ${isLoaded ? 'opacity-85' : 'opacity-0'}`}
             />
           </div>
 
           {/* 2. Dark contrast protection overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-bg-darker via-black/20 to-bg-darker z-5 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-darker/50 via-black/40 to-bg-darker z-5 pointer-events-none md:via-black/20" />
 
-          {/* 3. Centered Storytelling Slides Content Overlay */}
-          <div className="relative z-10 w-full max-w-3xl mx-auto px-6 h-[400px] flex items-center justify-center">
+          {/* 3. Storytelling Slides Content Overlay */}
+          <div className="absolute inset-0 pointer-events-none z-10">
             
             {/* Slide 1 */}
-            <div className="scrolly-slide-1 absolute inset-0 flex flex-col items-center justify-center text-center opacity-0">
+            <div className="scrolly-slide-1 absolute inset-0 flex flex-col items-center justify-end pb-24 px-6 text-center opacity-0 md:justify-center md:pb-0">
               <span className="text-brand-orange font-display text-xs font-semibold tracking-[0.25em] uppercase mb-4 flex items-center gap-1.5 justify-center">
                 <Sparkles size={14} /> 01 / BRAND FORGING
               </span>
@@ -250,7 +244,7 @@ export const LogoScrollytelling: React.FC = () => {
             </div>
 
             {/* Slide 2 */}
-            <div className="scrolly-slide-2 absolute inset-0 flex flex-col items-center justify-center text-center opacity-0">
+            <div className="scrolly-slide-2 absolute inset-0 flex flex-col items-center justify-end pb-24 px-6 text-center opacity-0 md:justify-center md:pb-0">
               <span className="text-brand-orange font-display text-xs font-semibold tracking-[0.25em] uppercase mb-4 flex items-center gap-1.5 justify-center">
                 <Sparkles size={14} /> 02 / STUDENT SPIRIT
               </span>
@@ -263,7 +257,7 @@ export const LogoScrollytelling: React.FC = () => {
             </div>
 
             {/* Slide 3 */}
-            <div className="scrolly-slide-3 absolute inset-0 flex flex-col items-center justify-center text-center opacity-0">
+            <div className="scrolly-slide-3 absolute inset-0 flex flex-col items-center justify-end pb-24 px-6 text-center opacity-0 md:justify-center md:pb-0">
               <span className="text-brand-orange font-display text-xs font-semibold tracking-[0.25em] uppercase mb-4 flex items-center gap-1.5 justify-center">
                 <Sparkles size={14} /> 03 / LOCAL MASCOT
               </span>
@@ -276,7 +270,7 @@ export const LogoScrollytelling: React.FC = () => {
             </div>
 
             {/* Slide 4 */}
-            <div className="scrolly-slide-4 absolute inset-0 flex flex-col items-center justify-center text-center opacity-0">
+            <div className="scrolly-slide-4 absolute inset-0 flex flex-col items-center justify-end pb-24 px-6 text-center opacity-0 md:justify-center md:pb-0">
               <span className="text-brand-orange font-display text-xs font-semibold tracking-[0.25em] uppercase mb-4 flex items-center gap-1.5 justify-center">
                 <Sparkles size={14} /> 04 / THE JOURNEY
               </span>
@@ -291,15 +285,12 @@ export const LogoScrollytelling: React.FC = () => {
           </div>
 
         </div>
-      )}
 
       {/* Scroll indicator overlay */}
-      {isLoaded && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-gray-500 pointer-events-none">
-          <span className="text-[9px] font-display uppercase tracking-[0.35em] font-semibold">SCROLL TO SPIN</span>
-          <ChevronDown size={14} className="text-brand-orange animate-bounce" />
-        </div>
-      )}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-gray-500 pointer-events-none">
+        <span className="text-[9px] font-display uppercase tracking-[0.35em] font-semibold">SCROLL TO SPIN</span>
+        <ChevronDown size={14} className="text-brand-orange animate-bounce" />
+      </div>
     </div>
   );
 };

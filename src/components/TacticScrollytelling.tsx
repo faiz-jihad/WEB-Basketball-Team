@@ -34,7 +34,13 @@ export const TacticScrollytelling: React.FC = () => {
 
   // Track viewport dimensions dynamically for crisp canvas
   useEffect(() => {
+    let lastWidth = window.innerWidth;
     const handleResize = () => {
+      // Ignore height-only resizes on mobile (URL bar collapse) to prevent canvas flicker
+      if (window.innerWidth < 768 && window.innerWidth === lastWidth) {
+        return;
+      }
+      lastWidth = window.innerWidth;
       setDimensions({
         width: window.innerWidth,
         height: window.innerHeight
@@ -44,36 +50,46 @@ export const TacticScrollytelling: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Preload all frames
+  // Preload frames progressively
   useEffect(() => {
     let loadedCount = 0;
-    const images: HTMLImageElement[] = [];
+    const images: HTMLImageElement[] = new Array(frameUrls.length);
 
     if (frameUrls.length === 0) {
       setIsLoaded(true);
       return;
     }
 
-    frameUrls.forEach((url, index) => {
-      const img = new Image();
-      img.src = url;
-      img.onload = () => {
-        loadedCount++;
-        setProgress(Math.round((loadedCount / frameUrls.length) * 100));
-        if (loadedCount === frameUrls.length) {
-          setIsLoaded(true);
-        }
-      };
-      img.onerror = () => {
-        console.warn(`Could not preload tactic frame image at path: ${url}`);
-        loadedCount++;
-        setProgress(Math.round((loadedCount / frameUrls.length) * 100));
-        if (loadedCount === frameUrls.length) {
-          setIsLoaded(true);
-        }
-      };
-      images[index] = img;
-    });
+    // Load first frame to unblock UI quickly
+    const loadRemainingFrames = () => {
+      frameUrls.slice(1).forEach((url, index) => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          loadedCount++;
+          setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+        };
+        img.onerror = () => {
+          loadedCount++;
+          setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+        };
+        images[index + 1] = img;
+      });
+    };
+
+    const firstImg = new Image();
+    firstImg.src = frameUrls[0];
+    firstImg.onload = () => {
+      images[0] = firstImg;
+      loadedCount++;
+      setProgress(Math.round((loadedCount / frameUrls.length) * 100));
+      setIsLoaded(true); // Unblock UI immediately after first frame!
+      loadRemainingFrames();
+    };
+    firstImg.onerror = () => {
+      setIsLoaded(true);
+      loadRemainingFrames();
+    };
 
     setPreloadedImages(images);
   }, []);
@@ -104,8 +120,6 @@ export const TacticScrollytelling: React.FC = () => {
 
   // Setup GSAP scroll pinning and frame index scrub
   useEffect(() => {
-    if (!isLoaded || preloadedImages.length === 0) return;
-
     const totalFrames = frameUrls.length;
     const obj = { frame: 0 };
     
@@ -178,31 +192,13 @@ export const TacticScrollytelling: React.FC = () => {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [isLoaded, isRtl, preloadedImages.length]);
+  }, [isRtl, preloadedImages.length]);
 
   return (
     <div 
       ref={containerRef} 
       className="relative w-full h-screen bg-bg-darker border-b border-white/5 overflow-hidden"
     >
-      {/* Loading Cover */}
-      {!isLoaded && (
-        <div className="absolute inset-0 z-[1000] bg-bg-darker flex flex-col items-center justify-center p-6">
-          <div className="flex flex-col items-center max-w-xs w-full">
-            <div className="w-12 h-12 rounded-full border-2 border-brand-orange/20 border-t-brand-orange animate-spin mb-6" />
-            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-brand-orange transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-white mt-4 font-black font-display tracking-widest text-[10px] uppercase">
-              {language === 'id' ? 'Memuat Taktik...' : language === 'ar' ? 'جاري تحميل التكتيك...' : 'Loading Tactics...'} {progress}%
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Main Canvas for Scrollytelling Frames */}
       <canvas
         ref={canvasRef}
@@ -212,50 +208,58 @@ export const TacticScrollytelling: React.FC = () => {
       />
 
       {/* Scrollytelling Content Overlays */}
-      <div className={`absolute inset-0 pointer-events-none flex items-center p-8 md:p-24 ${isRtl ? 'justify-end text-right' : 'justify-start text-left'}`}>
+      <div className="absolute inset-0 pointer-events-none">
         
         {/* Slide 1 */}
-        <div className="tactic-slide-1 absolute max-w-lg">
-          <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
-            {t('tacticScrolly', 'slide1Title')}
-          </h2>
-          <div className={`w-24 h-1.5 bg-brand-orange my-6 ${isRtl ? 'ml-auto' : ''}`} />
-          <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
-            {t('tacticScrolly', 'slide1Desc')}
-          </p>
+        <div className={`tactic-slide-1 absolute inset-0 flex flex-col justify-end pb-24 px-6 text-center md:justify-center md:pb-0 md:px-24 ${isRtl ? 'md:items-end md:text-right' : 'md:items-start md:text-left'}`}>
+          <div className="max-w-lg w-full">
+            <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
+              {t('tacticScrolly', 'slide1Title')}
+            </h2>
+            <div className={`w-24 h-1.5 bg-brand-orange my-6 mx-auto ${isRtl ? 'md:mr-0' : 'md:ml-0'}`} />
+            <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
+              {t('tacticScrolly', 'slide1Desc')}
+            </p>
+          </div>
         </div>
 
         {/* Slide 2 */}
-        <div className={`tactic-slide-2 absolute max-w-lg ${isRtl ? 'left-8 md:left-24 text-left' : 'right-8 md:right-24 text-right'}`}>
-          <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
-            {t('tacticScrolly', 'slide2Title')}
-          </h2>
-          <div className={`w-24 h-1.5 bg-brand-orange my-6 ${isRtl ? '' : 'ml-auto'}`} />
-          <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
-            {t('tacticScrolly', 'slide2Desc')}
-          </p>
+        <div className={`tactic-slide-2 absolute inset-0 flex flex-col justify-end pb-24 px-6 text-center md:justify-center md:pb-0 md:px-24 ${isRtl ? 'md:items-start md:text-left' : 'md:items-end md:text-right'}`}>
+          <div className="max-w-lg w-full">
+            <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
+              {t('tacticScrolly', 'slide2Title')}
+            </h2>
+            <div className={`w-24 h-1.5 bg-brand-orange my-6 mx-auto ${isRtl ? 'md:ml-0' : 'md:mr-0'}`} />
+            <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
+              {t('tacticScrolly', 'slide2Desc')}
+            </p>
+          </div>
         </div>
 
         {/* Slide 3 */}
-        <div className="tactic-slide-3 absolute max-w-lg">
-          <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
-            {t('tacticScrolly', 'slide3Title')}
-          </h2>
-          <div className={`w-24 h-1.5 bg-brand-orange my-6 ${isRtl ? 'ml-auto' : ''}`} />
-          <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
-            {t('tacticScrolly', 'slide3Desc')}
-          </p>
+        <div className={`tactic-slide-3 absolute inset-0 flex flex-col justify-end pb-24 px-6 text-center md:justify-center md:pb-0 md:px-24 ${isRtl ? 'md:items-end md:text-right' : 'md:items-start md:text-left'}`}>
+          <div className="max-w-lg w-full">
+            <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
+              {t('tacticScrolly', 'slide3Title')}
+            </h2>
+            <div className={`w-24 h-1.5 bg-brand-orange my-6 mx-auto ${isRtl ? 'md:mr-0' : 'md:ml-0'}`} />
+            <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
+              {t('tacticScrolly', 'slide3Desc')}
+            </p>
+          </div>
         </div>
 
         {/* Slide 4 */}
-        <div className={`tactic-slide-4 absolute max-w-lg ${isRtl ? 'left-8 md:left-24 text-left' : 'right-8 md:right-24 text-right'}`}>
-          <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
-            {t('tacticScrolly', 'slide4Title')}
-          </h2>
-          <div className={`w-24 h-1.5 bg-brand-orange my-6 ${isRtl ? '' : 'ml-auto'}`} />
-          <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
-            {t('tacticScrolly', 'slide4Desc')}
-          </p>
+        <div className={`tactic-slide-4 absolute inset-0 flex flex-col justify-end pb-24 px-6 text-center md:justify-center md:pb-0 md:px-24 ${isRtl ? 'md:items-start md:text-left' : 'md:items-end md:text-right'}`}>
+          <div className="max-w-lg w-full">
+            <h2 className="text-4xl md:text-6xl font-black text-white font-title uppercase leading-none drop-shadow-2xl">
+              {t('tacticScrolly', 'slide4Title')}
+            </h2>
+            <div className={`w-24 h-1.5 bg-brand-orange my-6 mx-auto ${isRtl ? 'md:ml-0' : 'md:mr-0'}`} />
+            <p className="text-sm md:text-lg text-gray-300 font-display drop-shadow-lg leading-relaxed font-semibold">
+              {t('tacticScrolly', 'slide4Desc')}
+            </p>
+          </div>
         </div>
 
       </div>

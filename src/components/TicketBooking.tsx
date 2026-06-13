@@ -298,13 +298,13 @@ export const TicketBooking: React.FC = () => {
               </div>
 
               {/* Active Booked Digital Tickets */}
-              {bookedTickets.length > 0 && (
+              {(bookedTickets || []).length > 0 && (
                 <div className="glass-panel-heavy rounded-3xl p-6 border border-white/5 relative">
                   <h4 className="font-title font-extrabold uppercase text-white mb-4 flex items-center gap-2 text-start">
                     <Ticket size={18} className="text-brand-gold" /> {t('tickets', 'tixTitle')}
                   </h4>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                    {bookedTickets.map((tix, idx) => (
+                    {(bookedTickets || []).map((tix, idx) => (
                       <div key={idx} className="border border-white/5 bg-white/2 rounded-2xl p-4 flex gap-4 items-center relative overflow-hidden">
                         <div className="w-16 h-16 bg-white flex items-center justify-center rounded-lg flex-shrink-0">
                           {/* Simulated QR code */}

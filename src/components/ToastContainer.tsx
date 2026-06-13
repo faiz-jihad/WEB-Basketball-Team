@@ -11,7 +11,7 @@ export const ToastContainer: React.FC = () => {
   const isRtl = language === 'ar';
 
   return (
-    <div className={`fixed top-24 ${isRtl ? 'left-6' : 'right-6'} z-[3000] w-full max-w-sm space-y-3 pointer-events-none`}>
+    <div className={`fixed top-24 z-[3000] left-4 right-4 md:w-full md:max-w-sm space-y-3 pointer-events-none ${isRtl ? 'md:right-auto md:left-6' : 'md:left-auto md:right-6'}`}>
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div

@@ -88,15 +88,18 @@ export const MerchandiseStore: React.FC = () => {
 
     const handleStorageChange = () => loadProducts();
     window.addEventListener("bsq_inventory_updated", handleStorageChange);
+    window.addEventListener("bsq_merchandise_updated", handleStorageChange);
     window.addEventListener("storage", handleStorageChange);
 
     return () => {
       window.removeEventListener("bsq_inventory_updated", handleStorageChange);
+      window.removeEventListener("bsq_merchandise_updated", handleStorageChange);
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
   const handleAddToCart = (prod: Merchandise, size?: string) => {
+    if (prod.is_locked || prod.stock <= 0) return;
     addToCart({
       id: prod.id,
       name: prod.name,
@@ -109,6 +112,17 @@ export const MerchandiseStore: React.FC = () => {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
+    
+    // Check if any item in cart is currently locked or has 0 stock in products database
+    const invalidItems = cart.filter(item => {
+      const match = products.find(p => p.id === item.id);
+      return match && (match.is_locked || match.stock <= 0);
+    });
+
+    if (invalidItems.length > 0) {
+      addToast('warning', 'Item Unavailable', `Some items in your cart are sold out or currently locked. Please remove them.`);
+      return;
+    }
     
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const orderDetails = cart.map(item => `- ${item.name} (${item.size}) x${item.quantity}`).join('\n');
@@ -174,19 +188,34 @@ export const MerchandiseStore: React.FC = () => {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
               >
-                <ProductCard3D onClick={() => handleAddToCart(prod)}>
+                <ProductCard3D onClick={() => {
+                  if (!(prod.is_locked || prod.stock <= 0)) {
+                    handleAddToCart(prod);
+                  }
+                }}>
                   
                   {/* Category Tag */}
                   <span className={`absolute top-4 z-10 px-2 py-0.5 bg-black/60 border border-white/10 text-[9px] font-bold text-brand-gold tracking-widest uppercase rounded ${isRtl ? 'right-4' : 'left-4'}`}>
                     {getCategoryLabel(prod.category)}
                   </span>
 
+                  {/* Status Tag */}
+                  {prod.is_locked ? (
+                    <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
+                      🔒 {t('shop', 'lockedProduct') || 'LOCKED'}
+                    </span>
+                  ) : prod.stock <= 0 ? (
+                    <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
+                      ❌ {t('shop', 'outOfStock')}
+                    </span>
+                  ) : null}
+
                   {/* Product Image Frame */}
                   <div className="aspect-square w-full rounded-2xl bg-black/40 overflow-hidden mb-6 flex items-center justify-center relative group">
                     <img
                       src={prod.image}
                       alt={prod.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${(prod.is_locked || prod.stock <= 0) ? "grayscale opacity-40" : ""}`}
                     />
                     <div className="absolute inset-0 bg-brand-orange/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   </div>
@@ -206,9 +235,26 @@ export const MerchandiseStore: React.FC = () => {
                         e.stopPropagation();
                         handleAddToCart(prod);
                       }}
-                      className="px-4 py-2.5 bg-brand-orange hover:bg-brand-burnt text-brand-black font-display font-black text-[10px] tracking-widest rounded-xl uppercase transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg shadow-brand-orange/15"
+                      disabled={prod.is_locked || prod.stock <= 0}
+                      className={`px-4 py-2.5 font-display font-black text-[10px] tracking-widest rounded-xl uppercase transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg ${
+                        (prod.is_locked || prod.stock <= 0)
+                          ? "bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed shadow-none"
+                          : "bg-brand-orange hover:bg-brand-burnt text-brand-black shadow-brand-orange/15"
+                      }`}
                     >
-                      <ShoppingBag size={12} /> {t('shop', 'addToCart')}
+                      {prod.is_locked ? (
+                        <>
+                          <X size={12} /> {t('shop', 'lockedProduct') || 'LOCKED'}
+                        </>
+                      ) : prod.stock <= 0 ? (
+                        <>
+                          <X size={12} /> {t('shop', 'outOfStock')}
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingBag size={12} /> {t('shop', 'addToCart')}
+                        </>
+                      )}
                     </button>
                   </div>
 

@@ -86,8 +86,9 @@ export const FanCommunity: React.FC = () => {
     });
 
     // Subscribe to realtime comment insertions
-    const channel = (db as any).channel('comments:INSERT')
-      .on('postgres_changes' as any, { event: 'INSERT', table: 'comments' }, (payload: any) => {
+    const channelName = `comments_insert_${activeMatchId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const channel = (db as any).channel(channelName)
+      .on('postgres_changes' as any, { event: 'INSERT', table: 'comments', schema: 'public' }, (payload: any) => {
         if (payload.new.match_id === activeMatchId) {
           setComments(prev => [...prev, payload.new as Comment]);
         }
@@ -95,7 +96,9 @@ export const FanCommunity: React.FC = () => {
       .subscribe();
 
     return () => {
-      // unsubscribe not fully implemented in mockSupabase, preventing crash
+      if (channel && typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
     };
   }, [activeMatchId]);
 
@@ -118,9 +121,9 @@ export const FanCommunity: React.FC = () => {
 
     (db as any).from('comments').insert({
       match_id: activeMatchId,
-      user_id: `u_${fan.username}`,
-      username: fan.username,
-      avatar: fan.avatar,
+      user_id: `u_${fan?.username || 'Guest'}`,
+      username: fan?.username || 'Guest',
+      avatar: fan?.avatar || '',
       content: commentText.trim()
     }).then(({ error }: any) => {
       if (!error) {
@@ -150,8 +153,8 @@ export const FanCommunity: React.FC = () => {
   };
 
   // Calculate XP percentage for level progress
-  const nextLevelThreshold = fan.level * 100;
-  const xpPercentage = Math.min((fan.xp / nextLevelThreshold) * 100, 100);
+  const nextLevelThreshold = (fan?.level || 1) * 100;
+  const xpPercentage = Math.min(((fan?.xp || 0) / nextLevelThreshold) * 100, 100);
   
   const firebaseUser = useAppStore(state => state.firebaseUser);
 
@@ -180,17 +183,17 @@ export const FanCommunity: React.FC = () => {
               ) : (
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 rounded-2xl bg-brand-orange/15 border border-brand-orange/30 overflow-hidden flex items-center justify-center p-1.5 shadow-lg shadow-brand-orange/5">
-                    <img src={fan.avatar} alt={fan.username} className="w-full h-full object-cover rounded-xl" />
+                    <img src={fan?.avatar || ''} alt={fan?.username || ''} className="w-full h-full object-cover rounded-xl" />
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-title font-black text-white leading-none mb-2">
-                      {fan.username}
+                      {fan?.username || 'Guest'}
                     </h4>
                     <span className="px-2 py-0.5 bg-brand-orange/20 text-brand-orange text-[9px] font-black rounded uppercase inline-block mb-1">
-                      {t('fan', 'level')} {fan.level}
+                      {t('fan', 'level')} {fan?.level || 1}
                     </span>
                     <p className="text-[10px] text-gray-500 font-display">
-                      {fan.xp} / {nextLevelThreshold} XP
+                      {fan?.xp || 0} / {nextLevelThreshold} XP
                     </p>
                   </div>
                 </div>
@@ -342,7 +345,7 @@ export const FanCommunity: React.FC = () => {
             ) : (
               <AnimatePresence initial={false}>
                 {comments.map((comment) => {
-                  const isMe = comment.username === fan.username;
+                  const isMe = comment.username === fan?.username;
                   const bubbleCorner = isMe
                     ? (isRtl ? 'rounded-tl-none' : 'rounded-tr-none')
                     : (isRtl ? 'rounded-tr-none' : 'rounded-tl-none');
@@ -372,7 +375,10 @@ export const FanCommunity: React.FC = () => {
                           {comment.content}
                         </div>
                         <span className="text-[8px] text-gray-600 mt-1 block">
-                          {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          {(() => {
+                            const d = new Date(comment.created_at);
+                            return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                          })()}
                         </span>
                       </div>
 
@@ -402,7 +408,7 @@ export const FanCommunity: React.FC = () => {
                 required
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder={`${t('fan', 'chatPlaceholder')} ${fan.username}...`}
+                placeholder={`${t('fan', 'chatPlaceholder')} ${fan?.username || ''}...`}
                 className="flex-1 bg-black/50 border border-white/10 focus:border-brand-orange focus:outline-none px-4 py-3 rounded-xl text-xs text-white placeholder-gray-600 font-display"
               />
               <button

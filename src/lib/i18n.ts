@@ -234,7 +234,8 @@ export const translations = {
       confirmPurchase: "Confirm Purchase",
       checkoutReward: "Checkouts reward +100 Clubhouse XP instantly.",
       orderPlaced: "Order Placed! 🛍️",
-      orderPlacedDesc: "Thank you for supporting BSQ ALL-FIVE. +100 XP gained!"
+      orderPlacedDesc: "Thank you for supporting BSQ ALL-FIVE. +100 XP gained!",
+      lockedProduct: "Locked"
     },
     admin: {
       console: "Administration Console",
@@ -294,6 +295,60 @@ export const translations = {
       enterPasscode: "Enter Passcode",
       authenticatedAs: "Authenticated as",
       logout: "Log Out"
+    },
+    terms: {
+      title: "Terms of Service",
+      updated: "Last Updated: June 2026",
+      tableOfContents: "Table of Contents",
+      developerNote: "Developer Note",
+      developerNoteDesc: "These terms are designed for the simulation of the Al Hikmah Cirebon school basketball team platform. Ticket and merchandise transactions within this site are simulated for demonstration purposes.",
+      sec1Title: "1. Acceptance of Terms",
+      sec1Content: "By accessing and using the BSQ ALL-FIVE website, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our website.",
+      sec2Title: "2. Ticket Bookings",
+      sec2Content: "Match ticket bookings are final and non-refundable. Each user is fully responsible for seat selection and the details entered during booking. Digital tickets are validated using the unique QR Code in your account wallet.",
+      sec3Title: "3. Merchandise Purchases",
+      sec3Content: "All prices are listed in Indonesian Rupiah (IDR). We reserve the right to limit purchase quantities or lock products when stock is low. Product returns are only accepted for manufacturing defects within 7 days of receipt in original packaging.",
+      sec4Title: "4. User Conduct",
+      sec4Content: "You agree not to abuse community features such as chat rooms and score prediction systems. Sharing content containing harassment, hate speech, spam, or other illegal actions is strictly prohibited.",
+      sec5Title: "5. Limitation of Liability",
+      sec5Content: "BSQ ALL-FIVE is not liable for any direct or indirect losses arising from the inability to access the website, transaction failures due to network issues, or the misuse of local/mock accounts."
+    },
+    privacy: {
+      title: "Privacy Policy",
+      updated: "Last Updated: June 2026",
+      tableOfContents: "Table of Contents",
+      sec1Title: "1. Data Collection",
+      sec1Content: "We collect basic profile data when you log in via Google, including your display name, email address, and profile photo. If using local sessions (mock mode), we only store the username you manually type inside your browser storage.",
+      sec2Title: "2. Storage & Security",
+      sec2Content: "Your account data and community activity (such as chat logs and score predictions) are stored securely in our Supabase database. Local session details are also cached in your browser local storage (LocalStorage) for smooth access.",
+      sec3Title: "3. Third-Party Services",
+      sec3Content: "Our application uses Firebase Authentication for secure Google log-ins, and Supabase for cloud database management. These services are subject to the privacy policies of their respective platform providers.",
+      sec4Title: "4. Cookies & Browser Storage",
+      sec4Content: "We use browser storage technologies (LocalStorage & SessionStorage) to save your language preference, shopping cart, digital tickets, and mock login state. No third-party ad-tracking cookies are used.",
+      sec5Title: "5. User Rights",
+      sec5Content: "You have the right to log out of your account at any time, which will remove your active session token from our online database. You can also clear your browser browsing data to erase all mock sessions and local shopping carts."
+    },
+    contact: {
+      getInTouch: "Get In Touch",
+      title: "Media & Supporter Relations",
+      desc: "Have queries about match tickets, merchandise, or academy partnerships? Drop us a line and we will respond shortly.",
+      contactDirectory: "Contact Directory",
+      headquarters: "Headquarters & Arena",
+      mediaEmail: "Media Relations Email",
+      hotline: "Supporter Hotline",
+      socialChannels: "Social Channels",
+      fullName: "Full Name",
+      fullNamePlaceholder: "Your display name",
+      subject: "Subject",
+      subjectPlaceholder: "Ticket support, merchandise, feedback...",
+      message: "Your Message",
+      messagePlaceholder: "Write your details here...",
+      sending: "Sending...",
+      sendMessage: "Send Message",
+      messageReceived: "Message Received!",
+      thankYou: "Thank you for reaching out. Our administration team will review your message and get back to you shortly.",
+      xpEarned: "Earned!",
+      sendAnother: "Send Another Message"
     }
   },
   id: {
@@ -528,7 +583,8 @@ export const translations = {
       confirmPurchase: "Konfirmasi Pembelian",
       checkoutReward: "Checkout memberikan +100 Clubhouse XP secara instan.",
       orderPlaced: "Pesanan Dibuat! 🛍️",
-      orderPlacedDesc: "Terima kasih telah mendukung BSQ ALL-FIVE. +100 XP didapatkan!"
+      orderPlacedDesc: "Terima kasih telah mendukung BSQ ALL-FIVE. +100 XP didapatkan!",
+      lockedProduct: "Terkunci"
     },
     admin: {
       console: "Konsol Administrasi",
@@ -588,6 +644,60 @@ export const translations = {
       enterPasscode: "Masukkan Kata Sandi",
       authenticatedAs: "Terautentikasi sebagai",
       logout: "Keluar"
+    },
+    terms: {
+      title: "Ketentuan Layanan",
+      updated: "Terakhir Diperbarui: Juni 2026",
+      tableOfContents: "Daftar Isi",
+      developerNote: "Catatan Pengembang",
+      developerNoteDesc: "Ketentuan ini dirancang untuk simulasi platform tim basket sekolah Al Hikmah Cirebon. Transaksi tiket dan merchandise dalam web ini bersifat simulasi pembelajaran untuk keperluan demonstrasi.",
+      sec1Title: "1. Penerimaan Ketentuan",
+      sec1Content: "Dengan mengakses dan menggunakan situs web BSQ ALL-FIVE, Anda setuju untuk terikat oleh Ketentuan Layanan ini. Jika Anda tidak menyetujui ketentuan ini, harap jangan menggunakan situs web kami.",
+      sec2Title: "2. Pemesanan Tiket",
+      sec2Content: "Pemesanan tiket pertandingan bersifat final dan tidak dapat dikembalikan. Setiap pengguna bertanggung jawab penuh atas pemilihan kursi dan data yang dimasukkan saat pemesanan. Tiket digital sah ditunjukkan melalui QR Code unik di dompet akun Anda.",
+      sec3Title: "3. Pembelian Merchandise",
+      sec3Content: "Semua harga tercantum dalam Rupiah (IDR). Kami berhak membatasi jumlah pembelian atau mengunci produk jika stok menipis. Pengembalian produk hanya diterima untuk barang cacat produksi dalam waktu 7 hari sejak penerimaan dengan kemasan asli.",
+      sec4Title: "4. Perilaku Pengguna",
+      sec4Content: "Anda setuju untuk tidak menyalahgunakan fitur komunitas seperti ruang obrolan (chat) dan sistem prediksi skor. Dilarang keras membagikan konten yang mengandung SARA, ujaran kebencian, spam, atau tindakan ilegal lainnya.",
+      sec5Title: "5. Batasan Tanggung Jawab",
+      sec5Content: "BSQ ALL-FIVE tidak bertanggung jawab atas kerugian langsung maupun tidak langsung yang timbul dari ketidakmampuan mengakses situs web, kegagalan transaksi karena masalah jaringan, atau penyalahgunaan akun lokal/mock."
+    },
+    privacy: {
+      title: "Kebijakan Privasi",
+      updated: "Terakhir Diperbarui: Juni 2026",
+      tableOfContents: "Daftar Isi",
+      sec1Title: "1. Pengumpulan Data",
+      sec1Content: "Kami mengumpulkan data profil dasar Anda saat Anda masuk (login) menggunakan Google, seperti nama tampilan (display name), alamat email, dan foto profil. Jika menggunakan sesi lokal (mock mode), kami hanya menyimpan nama pengguna yang Anda ketik secara manual di penyimpanan browser Anda.",
+      sec2Title: "2. Penyimpanan & Keamanan",
+      sec2Content: "Data akun dan aktivitas komunitas Anda (seperti obrolan/chat dan prediksi skor) disimpan dengan aman di database Supabase kami. Informasi sesi lokal juga dicadangkan di penyimpanan lokal browser Anda (LocalStorage) untuk kelancaran akses.",
+      sec3Title: "3. Layanan Pihak Ketiga",
+      sec3Content: "Aplikasi kami menggunakan Firebase Authentication untuk otentikasi Google yang aman, dan Supabase untuk manajemen database cloud. Layanan ini tunduk pada kebijakan privasi masing-masing penyedia platform.",
+      sec4Title: "4. Cookies & Penyimpanan Browser",
+      sec4Content: "Kami menggunakan teknologi penyimpanan browser lokal (LocalStorage & SessionStorage) untuk menyimpan preferensi bahasa Anda, daftar keranjang belanja, tiket digital, serta status login mock Anda. Tidak ada data pelacak iklan pihak ketiga yang digunakan.",
+      sec5Title: "5. Hak Pengguna",
+      sec5Content: "Anda memiliki hak untuk keluar (logout) dari akun kapan saja, yang akan menghapus token sesi aktif Anda dari database online kami. Anda juga dapat membersihkan data penjelajahan browser Anda untuk menghapus seluruh sesi mock dan keranjang belanja lokal."
+    },
+    contact: {
+      getInTouch: "Hubungi Kami",
+      title: "Hubungan Media & Suporter",
+      desc: "Ada pertanyaan tentang tiket, merchandise, atau kerjasama akademi? Kirim pesan dan kami akan segera merespons.",
+      contactDirectory: "Informasi Kontak",
+      headquarters: "Markas & Arena",
+      mediaEmail: "Email Hubungan Media",
+      hotline: "Layanan Suporter",
+      socialChannels: "Saluran Sosial",
+      fullName: "Nama Lengkap",
+      fullNamePlaceholder: "Masukkan nama Anda",
+      subject: "Subjek Pesan",
+      subjectPlaceholder: "Topik yang ingin ditanyakan",
+      message: "Pesan Anda",
+      messagePlaceholder: "Tuliskan pesan Anda secara detail di sini...",
+      sending: "Mengirim...",
+      sendMessage: "Kirim Pesan",
+      messageReceived: "Pesan Terkirim!",
+      thankYou: "Terima kasih telah menghubungi kami. Tim administrasi kami akan meninjau pesan Anda dan segera menghubungi Anda kembali.",
+      xpEarned: "Diperoleh!",
+      sendAnother: "Kirim Pesan Lain"
     }
   },
   ar: {
@@ -822,7 +932,8 @@ export const translations = {
       confirmPurchase: "تأكيد الشراء",
       checkoutReward: "تمنح عمليات الدفع +100 نقطة خبرة للنادي فوراً.",
       orderPlaced: "تم تقديم الطلب! 🛍️",
-      orderPlacedDesc: "شكراً لدعمك BSQ ALL-FIVE. تم الحصول على +100 نقطة خبرة!"
+      orderPlacedDesc: "شكراً لدعمك BSQ ALL-FIVE. تم الحصول على +100 نقطة خبرة!",
+      lockedProduct: "مغلق"
     },
     admin: {
       console: "لوحة التحكم الإدارية",
@@ -882,6 +993,60 @@ export const translations = {
       enterPasscode: "أدخل رمز المرور",
       authenticatedAs: "تم تسجيل الدخول كـ",
       logout: "خروج"
+    },
+    terms: {
+      title: "شروط الخدمة",
+      updated: "آخر تحديث: يونيو 2026",
+      tableOfContents: "جدول المحتويات",
+      developerNote: "ملاحظة المطور",
+      developerNoteDesc: "تم تصميم هذه الشروط لمحاكاة منصة فريق كرة السلة لمدرسة الحكمة سيريبون. معاملات التذاكر والبضائع داخل هذا الموقع هي مجرد محاكاة لأغراض التوضيح.",
+      sec1Title: "1. قبول الشروط",
+      sec1Content: "من خلال الوصول إلى موقع BSQ ALL-FIVE واستخدامه، فإنك توافق على الالتزام بشروط الخدمة هذه. إذا كنت لا توافق على هذه الشروط، يرجى عدم استخدام موقعنا.",
+      sec2Title: "2. حجز التذاكر",
+      sec2Content: "حجوزات تذاكر المباريات نهائية وغير قابلة للاسترداد. يتحمل كل مستخدم المسؤولية الكاملة عن اختيار المقعد والتفاصيل المدخلة أثناء الحجز. يتم التحقق من صحة التذاكر الرقمية باستخدام رمز الاستجابة السريعة (QR Code) الفريد في محفظة حسابك.",
+      sec3Title: "3. شراء البضائع",
+      sec3Content: "جميع الأسعار مدرجة بالروبية الإندونيسية (IDR). نحتفظ بالحق في تقييد كميات الشراء أو قفل المنتجات عند انخفاض المخزون. تُقبل عمليات إرجاع المنتجات فقط لعيوب التصنيع في غضون 7 أيام من الاستلام وفي عبوتها الأصلية.",
+      sec4Title: "4. سلوك المستخدم",
+      sec4Content: "أنت توافق على عدم إساءة استخدام ميزات المجتمع مثل غرف الدردشة وأنظمة توقع النتائج. يُحظر تمامًا مشاركة محتوى يحتوي على تحرش، أو خطاب كراهية، أو رسائل غير مرغوب فيها، أو أي إجراءات غير قانونية أخرى.",
+      sec5Title: "5. تحديد المسؤولية",
+      sec5Content: "فريق BSQ ALL-FIVE غير مسؤول عن أي خسائر مباشرة أو غير مباشرة تنشأ عن عدم القدرة على الوصول إلى الموقع، أو فشل المعاملات بسبب مشاكل في الشبكة، أو إساءة استخدام الحسابات المحلية/الوهمية."
+    },
+    privacy: {
+      title: "سياسة الخصوصية",
+      updated: "آخر تحديث: يونيو 2026",
+      tableOfContents: "جدول المحتويات",
+      sec1Title: "1. جمع البيانات",
+      sec1Content: "نقوم بجمع بيانات الملف الشخصي الأساسية عند تسجيل الدخول عبر جوجل، بما في ذلك اسم العرض وعنوان البريد الإلكتروني وصورة الملف الشخصي. في حالة استخدام الجلسات المحلية (الوضع الوهمي)، نقوم فقط بتخزين اسم المستخدم الذي تكتبه يدويًا داخل مساحة تخزين المتصفح.",
+      sec2Title: "2. التخزين والأمان",
+      sec2Content: "يتم تخزين بيانات حسابك ونشاط المجتمع (مثل سجلات الدردشة وتوقعات النتائج) بشكل آمن في قاعدة بيانات Supabase الخاصة بنا. يتم أيضًا تخزين تفاصيل الجلسة المحلية مؤقتًا في مساحة تخزين المتصفح المحلية (LocalStorage) لتسهيل الوصول.",
+      sec3Title: "3. خدمات الطرف الثالث",
+      sec3Content: "يستخدم تطبيقنا مصادقة Firebase لتسجيل الدخول الآمن عبر جوجل، و Supabase لإدارة قاعدة البيانات السحابية. تخضع هذه الخدمات لسياسات الخصوصية الخاصة بمزودي المنصات المذكورين.",
+      sec4Title: "4. ملفات تعريف الارتباط وتخزين المتصفح",
+      sec4Content: "نستخدم تقنيات تخزين المتصفح (LocalStorage و SessionStorage) لحفظ تفضيلات اللغة الخاصة بك، وعربة التسوق، والتذاكر الرقمية، وحالة تسجيل الدخول الوهمي. لا يتم استخدام أي ملفات تعريف ارتباط (كوكيز) لتتبع الإعلانات التابعة لجهات خارجية.",
+      sec5Title: "5. حقوق المستخدم",
+      sec5Content: "لديك الحق في تسجيل الخروج من حسابك في أي وقت، مما سيؤدي إلى إزالة رمز الجلسة النشط من قاعدة بياناتنا على الإنترنت. يمكنك أيضًا مسح بيانات تصفح المتصفح الخاص بك لمسح جميع الجلسات الوهمية وعربات التسوق المحلية."
+    },
+    contact: {
+      getInTouch: "تواصل معنا",
+      title: "العلاقات الإعلامية وشؤون المشجعين",
+      desc: "هل لديك استفسارات حول تذاكر المباريات، أو البضائع، أو شراكات الأكاديمية؟ راسلنا وسنرد عليك قريبًا.",
+      contactDirectory: "دليل الاتصال",
+      headquarters: "المقر الرئيسي والساحة",
+      mediaEmail: "البريد الإلكتروني للعلاقات الإعلامية",
+      hotline: "الخط الساخن للمشجعين",
+      socialChannels: "القنوات الاجتماعية",
+      fullName: "الاسم الكامل",
+      fullNamePlaceholder: "اسم العرض الخاص بك",
+      subject: "الموضوع",
+      subjectPlaceholder: "دعم التذاكر، البضائع، الملاحظات...",
+      message: "رسالتك",
+      messagePlaceholder: "اكتب تفاصيلك هنا...",
+      sending: "جاري الإرسال...",
+      sendMessage: "إرسال رسالة",
+      messageReceived: "تم استلام الرسالة!",
+      thankYou: "شكرًا لتواصلك معنا. سيقوم فريق إدارتنا بمراجعة رسالتك والرد عليك قريبًا.",
+      xpEarned: "تم الكسب!",
+      sendAnother: "إرسال رسالة أخرى"
     }
   }
 };
