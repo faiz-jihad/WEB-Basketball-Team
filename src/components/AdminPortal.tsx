@@ -935,7 +935,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         followers: newPlayerFollowers.trim() || null,
         social_feed: parsedSocialFeed.length > 0 ? parsedSocialFeed : null
       })
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast(
+            "warning",
+            "Failed to Create Player",
+            error.message || "Database write failed."
+          );
+          return;
+        }
         loadDatabase();
         setNewPlayerName("");
         setNewPlayerBio("");
@@ -969,7 +977,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         .from("players")
         .delete()
         .eq("id", playerId)
-        .then(() => {
+        .then(({ error }: any) => {
+          if (error) {
+            addToast("warning", "Failed to Remove Player", error.message || "Delete failed.");
+            return;
+          }
           loadDatabase();
           addToast(
             "success",
@@ -1061,7 +1073,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         social_feed: parsedSocialFeed.length > 0 ? parsedSocialFeed : null
       })
       .eq("id", editingPlayerId)
-      .then(() => {
+      .then(({ error }: any) => {
+        if (error) {
+          addToast("warning", "Failed to Update Player", error.message || "Update failed.");
+          return;
+        }
         loadDatabase();
         setEditingPlayerId(null);
         addToast("success", "Player Updated", `Updated ${editPlayerName}.`);
