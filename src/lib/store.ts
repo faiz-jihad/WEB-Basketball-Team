@@ -60,6 +60,8 @@ interface AppState {
   bookedTickets: BookedTicket[];
   bookSeats: (matchId: string, opponent: string, date: string) => void;
   verifyTicket: (qrCode: string) => void;
+  deleteBooking: (qrCode: string) => void;
+  clearAllBookings: () => void;
 
   // Toasts
   toasts: ToastMessage[];
@@ -299,6 +301,14 @@ export const useAppStore = create<AppState>()(
       });
       return { bookedTickets: tickets };
     });
+  },
+  deleteBooking: (qrCode) => {
+    set(state => ({
+      bookedTickets: state.bookedTickets.filter(t => t.qrCode !== qrCode)
+    }));
+  },
+  clearAllBookings: () => {
+    set({ bookedTickets: [] });
   },
 
   // Toasts implementation

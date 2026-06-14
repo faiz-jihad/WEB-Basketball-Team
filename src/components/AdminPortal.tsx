@@ -28,6 +28,7 @@ import {
 import { db } from "../lib/supabase";
 import type { Player, Match, Standing, Merchandise, Milestone, ActiveSession } from "../lib/supabase";
 import useAppStore from "../lib/store";
+import type { BookedTicket } from "../lib/store";
 import { getTranslation } from "../lib/i18n";
 
 interface AdminPortalProps {
@@ -134,6 +135,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const language = useAppStore((state) => state.language);
   const bookedTickets = useAppStore((state) => state.bookedTickets);
   const verifyTicket = useAppStore((state) => state.verifyTicket);
+  const deleteBooking = useAppStore((state) => state.deleteBooking);
+  const clearAllBookings = useAppStore((state) => state.clearAllBookings);
   const t = (section: string, key: string) =>
     getTranslation(language, section, key);
   const isRtl = language === "ar";
@@ -166,6 +169,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const updatedTix = latestTickets.find(t => t.qrCode === qr);
     if (updatedTix) {
       setVerificationResult({ status: 'valid', ticket: updatedTix });
+    }
+  };
+
+  const handleDeleteBooking = (qr: string) => {
+    if (confirm(language === "id" ? "Apakah Anda yakin ingin menghapus booking ini?" : "Are you sure you want to delete this booking?")) {
+      deleteBooking(qr);
+      addToast(
+        "info",
+        language === "id" ? "Booking Dihapus" : "Booking Deleted",
+        language === "id" ? `Booking dengan kode QR ${qr} telah dihapus.` : `Booking with QR Code ${qr} has been deleted.`
+      );
+      if (verificationResult && verificationResult.ticket.qrCode === qr) {
+        setVerificationResult(null);
+      }
+    }
+  };
+
+  const handleClearAllBookings = () => {
+    if (confirm(language === "id" ? "Apakah Anda yakin ingin menghapus SEMUA booking? Ini akan mengosongkan seluruh kursi!" : "Are you sure you want to delete ALL bookings? This will clear all seats!")) {
+      clearAllBookings();
+      addToast(
+        "success",
+        language === "id" ? "Semua Booking Dihapus" : "All Bookings Cleared",
+        language === "id" ? "Seluruh data kursi kini telah dikosongkan." : "All seats have been successfully cleared."
+      );
+      setVerificationResult(null);
     }
   };
 
@@ -3350,10 +3379,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                     {/* Booked Tickets List */}
                     <div className="bg-white/2 border border-white/5 rounded-2xl overflow-hidden text-start">
-                      <div className="p-4 border-b border-white/5 bg-black/20">
+                      <div className="p-4 border-b border-white/5 bg-black/20 flex justify-between items-center">
                         <h5 className="font-bold text-brand-orange uppercase text-xs tracking-widest">
                           {language === "id" ? "Tiket Terpesan" : "Booked Tickets"}
                         </h5>
+                        {(bookedTickets || []).length > 0 && (
+                          <button
+                            onClick={handleClearAllBookings}
+                            className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-brand-black border border-red-500/20 rounded-lg font-black uppercase text-[9px] tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Trash2 size={10} />
+                            {language === "id" ? "Kosongkan Semua" : "Clear All"}
+                          </button>
+                        )}
                       </div>
                       <div className="p-4 space-y-3">
                         {(bookedTickets || []).length === 0 ? (
@@ -3385,6 +3423,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     {language === "id" ? "Verifikasi" : "Verify"}
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleDeleteBooking(ticket.qrCode)}
+                                  className="p-1.5 text-red-500 hover:bg-red-500/15 rounded-lg border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
+                                  title={language === "id" ? "Hapus Booking" : "Delete Booking"}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
                             </div>
                           ))

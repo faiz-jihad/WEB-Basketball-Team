@@ -144,6 +144,15 @@ export const TicketBooking: React.FC = () => {
   const handleCheckout = () => {
     if (selectedSeats.length === 0 || !selectedMatch) return;
     
+    const cost = selectedSeats.length * getSectorPrice(selectedSector);
+    const phoneNumber = "6281234567890";
+    const matchDateStr = new Date(selectedMatch.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const seatDetails = selectedSeats.map(s => {
+      const parts = s.split('-');
+      return `${getSectorName(parts[0])} (Baris ${parts[1]} - Kursi ${parts[2]})`;
+    }).join(', ');
+    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nLawan: ${selectedMatch.opponent}\nTanggal: ${matchDateStr}\nTempat Duduk: ${seatDetails}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
+    
     // Process booking in store
     bookSeats(selectedMatch.id, selectedMatch.opponent, selectedMatch.date);
 
@@ -155,15 +164,6 @@ export const TicketBooking: React.FC = () => {
       colors: ['#FF5A00', '#FF7A00', '#D4AF37', '#ffffff']
     });
 
-    const cost = selectedSeats.length * getSectorPrice(selectedSector);
-    const phoneNumber = "6281234567890";
-    const matchDateStr = new Date(selectedMatch.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    const seatDetails = selectedSeats.map(s => {
-      const parts = s.split('-');
-      return `${getSectorName(parts[0])} (Baris ${parts[1]} - Kursi ${parts[2]})`;
-    }).join(', ');
-    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nLawan: ${selectedMatch.opponent}\nTanggal: ${matchDateStr}\nTempat Duduk: ${seatDetails}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
-    
     window.open(`https://wa.me/${phoneNumber}?text=${text}`, '_blank');
   };
 

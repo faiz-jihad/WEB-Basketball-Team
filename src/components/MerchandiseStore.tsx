@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, X } from 'lucide-react';
+import { ShoppingBag, X, Lock, Check, Sparkles, AlertCircle, Eye } from 'lucide-react';
 import { db } from '../lib/supabase';
 import type { Merchandise } from '../lib/supabase';
 import useAppStore from '../lib/store';
@@ -19,16 +19,16 @@ const ProductCard3D: React.FC<{ children: React.ReactNode; onClick: () => void }
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
     
-    const rotateY = (x - 0.5) * 20; // max 20 degrees
-    const rotateX = -(y - 0.5) * 20; // max 20 degrees
+    const rotateY = (x - 0.5) * 15; // max 15 degrees
+    const rotateX = -(y - 0.5) * 15; // max 15 degrees
     
-    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
   };
 
   const handleMouseLeave = () => {
     const card = cardRef.current;
     if (!card) return;
-    card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale(1.0)';
+    card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.0)';
   };
 
   return (
@@ -37,8 +37,8 @@ const ProductCard3D: React.FC<{ children: React.ReactNode; onClick: () => void }
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className="bg-bg-card border border-white/5 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 cursor-pointer relative overflow-hidden transition-all duration-200 select-none hover:border-brand-orange/20"
-      style={{ transformStyle: 'preserve-3d', transition: 'transform 0.15s ease' }}
+      className="bg-gradient-to-b from-[#161616] to-[#0d0d0d] border border-white/5 hover:border-brand-orange/20 rounded-2xl sm:rounded-3xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300 select-none shadow-xl hover:shadow-brand-orange/5"
+      style={{ transformStyle: 'preserve-3d', transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)' }}
     >
       {children}
     </div>
@@ -48,8 +48,10 @@ const ProductCard3D: React.FC<{ children: React.ReactNode; onClick: () => void }
 export const MerchandiseStore: React.FC = () => {
   const [products, setProducts] = useState<Merchandise[]>([]);
   const [activeCategory, setActiveCategory] = useState<'all' | 'jersey' | 'shoes' | 'caps' | 'accessories'>('all');
+  const [selectedProduct, setSelectedProduct] = useState<Merchandise | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string>('M');
   
-  const { cart, isCartOpen, addToCart, removeFromCart, updateQuantity, clearCart, setCartOpen, addXP, addToast, language } = useAppStore();
+  const { cart, isCartOpen, addToCart, language, addXP, addToast } = useAppStore();
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
 
@@ -98,44 +100,17 @@ export const MerchandiseStore: React.FC = () => {
     };
   }, []);
 
-  const handleAddToCart = (prod: Merchandise, size?: string) => {
+  const handleAddToCartWithSize = (prod: Merchandise, size: string) => {
     if (prod.is_locked || prod.stock <= 0) return;
     addToCart({
       id: prod.id,
       name: prod.name,
       price: prod.price,
       image: prod.image
-    }, size || 'M');
+    }, size);
 
-    addXP(5); // Grant minor XP for buying/cart updates
-  };
-
-  const handleCheckout = () => {
-    if (cart.length === 0) return;
-    
-    // Check if any item in cart is currently locked or has 0 stock in products database
-    const invalidItems = cart.filter(item => {
-      const match = products.find(p => p.id === item.id);
-      return match && (match.is_locked || match.stock <= 0);
-    });
-
-    if (invalidItems.length > 0) {
-      addToast('warning', 'Item Unavailable', `Some items in your cart are sold out or currently locked. Please remove them.`);
-      return;
-    }
-    
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const orderDetails = cart.map(item => `- ${item.name} (${item.size}) x${item.quantity}`).join('\n');
-    
-    const phoneNumber = "6281234567890";
-    const text = encodeURIComponent(`Halo, saya ingin memesan merchandise berikut:\n\n${orderDetails}\n\nTotal Harga: Rp ${total.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
-    
-    window.open(`https://wa.me/${phoneNumber}?text=${text}`, '_blank');
-
-    clearCart();
-    setCartOpen(false);
-    addXP(100); // Massive XP for checking out
-    addToast('success', t('shop', 'orderPlaced'), t('shop', 'orderPlacedDesc'));
+    addXP(10); // Grant XP for cart interaction
+    addToast('success', t('shop', 'toastAdded') || 'Added to Bag', `${prod.name} (${size}) has been added to your shopping bag.`);
   };
 
   const filteredProducts = products.filter(p => {
@@ -143,14 +118,24 @@ export const MerchandiseStore: React.FC = () => {
     return p.category === activeCategory;
   });
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Flagship spotlight product (Home Jersey)
+  const spotlightProduct = products.find(p => p.id === 'merch1');
+
+  // Categories count helper
+  const getCategoryCount = (cat: 'all' | 'jersey' | 'shoes' | 'caps' | 'accessories') => {
+    if (cat === 'all') return products.length;
+    return products.filter(p => p.category === cat).length;
+  };
 
   return (
-    <section id="shop" className="py-24 px-6 bg-bg-darker relative border-b border-white/5">
-      <div className="max-w-7xl mx-auto">
+    <section id="shop" className="py-24 px-6 bg-brand-black relative border-b border-white/5 overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-radial-gradient from-brand-orange/5 to-transparent blur-3xl pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         
-        {/* Header & Categories */}
-        <div className={`flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6 ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
+        {/* Header */}
+        <div className={`flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
           <div className="text-start">
             <span className="text-brand-orange font-display text-sm font-semibold tracking-[0.25em] uppercase block mb-1">{t('shop', 'shop')}</span>
             <h2 className="text-4xl md:text-5xl font-title font-extrabold uppercase text-white">
@@ -158,113 +143,345 @@ export const MerchandiseStore: React.FC = () => {
             </h2>
           </div>
 
-          {/* Categories bar */}
-          <div className={`flex flex-wrap gap-2 bg-white/2 border border-white/10 p-1.5 rounded-2xl text-xs font-display font-semibold self-start md:self-auto ${isRtl ? 'flex-row-reverse' : ''}`}>
+          {/* Categories bar with counts */}
+          <div className={`flex flex-wrap gap-2 bg-white/2 border border-white/10 p-1.5 rounded-2xl text-[11px] font-display font-bold self-start md:self-auto ${isRtl ? 'flex-row-reverse' : ''}`}>
             {(['all', 'jersey', 'shoes', 'caps', 'accessories'] as const).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2.5 rounded-xl uppercase transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeCategory === cat
-                    ? 'bg-brand-orange text-brand-black font-black'
+                    ? 'bg-brand-orange text-brand-black font-black glow-orange'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {getCategoryLabel(cat)}
+                <span>{getCategoryLabel(cat)}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                  activeCategory === cat ? 'bg-brand-black/15 text-brand-black' : 'bg-white/5 text-gray-500'
+                }`}>
+                  {getCategoryCount(cat)}
+                </span>
               </button>
             ))}
           </div>
         </div>
 
+        {/* Flagship Spotlight Banner */}
+        {spotlightProduct && activeCategory === 'all' && (
+          <div className="relative w-full rounded-3xl p-6 sm:p-10 mb-12 border border-brand-gold/20 bg-gradient-to-r from-brand-gold/10 via-brand-orange/5 to-black/30 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-brand-gold/5">
+            {/* Absolute visual highlights */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-brand-gold/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-60 h-60 bg-brand-orange/5 rounded-full blur-2xl pointer-events-none translate-y-1/3 -translate-x-1/3" />
+
+            {/* Left Content Column */}
+            <div className="flex-1 text-start space-y-4 md:max-w-xl font-display relative z-10">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-gold/15 border border-brand-gold/30 text-[10px] font-black tracking-widest text-brand-gold rounded-full uppercase">
+                <Sparkles size={12} /> Flagship Edition
+              </span>
+              <h3 className="text-3xl sm:text-4xl font-title font-black text-white uppercase leading-none">
+                {spotlightProduct.name}
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+                {spotlightProduct.description}
+              </p>
+              
+              <div className="flex items-baseline gap-3 pt-2">
+                <span className="text-2xl sm:text-3xl font-title font-black text-white">
+                  Rp {spotlightProduct.price.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[10px] text-brand-gold font-bold uppercase tracking-wider bg-brand-gold/10 border border-brand-gold/20 px-2.5 py-0.5 rounded-md">
+                  +100 XP checkout reward
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setSelectedProduct(spotlightProduct);
+                    setSelectedSize('M');
+                  }}
+                  className="px-6 py-3 bg-brand-orange hover:bg-brand-burnt text-brand-black font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-lg shadow-brand-orange/20 flex items-center gap-2"
+                >
+                  <Eye size={14} /> {language === 'id' ? 'Lihat Detail' : 'View Details'}
+                </button>
+                <button
+                  onClick={() => handleAddToCartWithSize(spotlightProduct, 'M')}
+                  disabled={spotlightProduct.is_locked || spotlightProduct.stock <= 0}
+                  className="px-6 py-3 bg-[#161616] hover:bg-[#222222] border border-white/10 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <ShoppingBag size={14} /> {t('shop', 'addToCart')}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Image Column */}
+            <div className="w-full md:w-80 lg:w-96 aspect-square rounded-2xl bg-black/40 border border-white/5 overflow-hidden flex items-center justify-center relative flex-shrink-0 group">
+              <img
+                src={spotlightProduct.image}
+                alt={spotlightProduct.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 filter brightness-95"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+            </div>
+          </div>
+        )}
+
         {/* Product Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
           <AnimatePresence mode="popLayout">
-            {filteredProducts.map((prod) => (
-              <motion.div
-                key={prod.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ProductCard3D onClick={() => {
-                  if (!(prod.is_locked || prod.stock <= 0)) {
-                    handleAddToCart(prod);
-                  }
-                }}>
-                  
-                  {/* Category Tag */}
-                  <span className={`absolute top-4 z-10 px-2 py-0.5 bg-black/60 border border-white/10 text-[9px] font-bold text-brand-gold tracking-widest uppercase rounded ${isRtl ? 'right-4' : 'left-4'}`}>
-                    {getCategoryLabel(prod.category)}
-                  </span>
-
-                  {/* Status Tag */}
-                  {prod.is_locked ? (
-                    <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
-                      🔒 {t('shop', 'lockedProduct') || 'LOCKED'}
+            {filteredProducts.map((prod) => {
+              const isLowStock = prod.stock > 0 && prod.stock <= 15;
+              return (
+                <motion.div
+                  key={prod.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ProductCard3D onClick={() => {
+                    setSelectedProduct(prod);
+                    setSelectedSize('M');
+                  }}>
+                    
+                    {/* Category Tag */}
+                    <span className={`absolute top-4 z-10 px-2.5 py-0.5 bg-black/60 border border-white/10 text-[9px] font-bold text-brand-gold tracking-widest uppercase rounded ${isRtl ? 'right-4' : 'left-4'}`}>
+                      {getCategoryLabel(prod.category)}
                     </span>
-                  ) : prod.stock <= 0 ? (
-                    <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
-                      ❌ {t('shop', 'outOfStock')}
-                    </span>
-                  ) : null}
 
-                  {/* Product Image Frame */}
-                  <div className="aspect-square w-full rounded-xl sm:rounded-2xl bg-black/40 overflow-hidden mb-3.5 sm:mb-6 flex items-center justify-center relative group">
-                    <img
-                      src={prod.image}
-                      alt={prod.name}
-                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${(prod.is_locked || prod.stock <= 0) ? "grayscale opacity-40" : ""}`}
-                    />
-                    <div className="absolute inset-0 bg-brand-orange/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </div>
+                    {/* Status Tag */}
+                    {prod.is_locked ? (
+                      <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
+                        <Lock size={10} /> {t('shop', 'lockedProduct') || 'LOCKED'}
+                      </span>
+                    ) : prod.stock <= 0 ? (
+                      <span className={`absolute top-4 z-10 px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
+                        <X size={10} /> {t('shop', 'outOfStock')}
+                      </span>
+                    ) : isLowStock ? (
+                      <span className={`absolute top-4 z-10 px-2 py-0.5 bg-amber-950/80 border border-amber-700/30 text-[9px] font-bold text-amber-500 tracking-widest uppercase rounded flex items-center gap-1 ${isRtl ? 'left-4' : 'right-4'}`}>
+                        <AlertCircle size={10} /> {language === 'id' ? 'STOK LIMITED' : 'LIMITED'}
+                      </span>
+                    ) : null}
 
-                  {/* Title & Details */}
-                  <h3 className="text-sm sm:text-lg font-title font-black uppercase text-white truncate mb-0.5 sm:mb-1 text-start">
-                    {prod.name}
-                  </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3 sm:mb-4 text-start">
-                    {prod.description}
-                  </p>
+                    {/* Product Image Frame */}
+                    <div className="aspect-square w-full rounded-xl sm:rounded-2xl bg-black/40 overflow-hidden mb-4 flex items-center justify-center relative group">
+                      <img
+                        src={prod.image}
+                        alt={prod.name}
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${(prod.is_locked || prod.stock <= 0) ? "grayscale opacity-40" : ""}`}
+                      />
+                      <div className="absolute inset-0 bg-brand-orange/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                      
+                      {/* Premium Quick View Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <span className="px-4 py-2 bg-brand-orange text-brand-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                          <Eye size={12} /> {language === 'id' ? 'Lihat Detail' : 'Quick View'}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className={`flex flex-col sm:flex-row justify-between sm:items-center gap-2 sm:gap-2 border-t border-white/5 pt-3 sm:pt-4 ${isRtl ? 'sm:flex-row-reverse' : ''}`}>
-                    <span className="text-lg sm:text-2xl font-title font-black text-white text-start">Rp {prod.price.toLocaleString('id-ID')}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(prod);
-                      }}
-                      disabled={prod.is_locked || prod.stock <= 0}
-                      className={`w-full sm:w-auto justify-center px-2.5 py-2 sm:px-4 sm:py-2.5 font-display font-black text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest rounded-lg sm:rounded-xl uppercase transition-colors flex items-center gap-1 cursor-pointer shadow-lg ${
-                        (prod.is_locked || prod.stock <= 0)
-                          ? "bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed shadow-none"
-                          : "bg-brand-orange hover:bg-brand-burnt text-brand-black shadow-brand-orange/15"
-                      }`}
-                    >
-                      {prod.is_locked ? (
-                        <>
-                          <X size={10} /> <span className="truncate">{t('shop', 'lockedProduct') || 'LOCKED'}</span>
-                        </>
-                      ) : prod.stock <= 0 ? (
-                        <>
-                          <X size={10} /> <span className="truncate">{t('shop', 'outOfStock')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingBag size={10} /> <span className="truncate">{t('shop', 'addToCart')}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                    {/* Title & Details */}
+                    <h3 className="text-sm sm:text-base font-title font-black uppercase text-white truncate mb-0.5 text-start">
+                      {prod.name}
+                    </h3>
+                    <p className="text-[10px] sm:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3 text-start">
+                      {prod.description}
+                    </p>
 
-                </ProductCard3D>
-              </motion.div>
-            ))}
+                    {/* Stock level micro indicator */}
+                    {!prod.is_locked && prod.stock > 0 && (
+                      <div className="w-full mb-3 text-start space-y-1 font-display">
+                        <div className="flex justify-between text-[9px] text-gray-500 font-bold">
+                          <span>{language === 'id' ? 'Ketersediaan Stok' : 'Stock Availability'}</span>
+                          <span className={isLowStock ? 'text-amber-500' : 'text-emerald-500'}>
+                            {prod.stock} {language === 'id' ? 'tersisa' : 'left'}
+                          </span>
+                        </div>
+                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${isLowStock ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            style={{ width: `${Math.min(100, (prod.stock / 50) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-t border-white/5 pt-3">
+                      <span className="text-base sm:text-lg font-title font-black text-white text-start">
+                        Rp {prod.price.toLocaleString('id-ID')}
+                      </span>
+                      <span className="text-[9px] font-bold text-brand-orange/60 tracking-wider text-start hidden sm:inline">
+                        {language === 'id' ? 'Klik untuk ukuran' : 'Click to select size'}
+                      </span>
+                    </div>
+
+                  </ProductCard3D>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
 
       </div>
+
+      {/* Premium Product Detail Modal */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <div className="fixed inset-0 z-[1500] flex items-center justify-center p-4">
+            {/* Dark glass backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProduct(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+
+            {/* Modal Card Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="bg-[#0b0b0b] border border-white/10 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh]"
+            >
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/60 hover:bg-white/10 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              {/* Left Column: Product Image Showcase */}
+              <div className="w-full md:w-1/2 bg-black/40 flex items-center justify-center relative border-r border-white/5 overflow-hidden p-6">
+                <div className="absolute inset-0 bg-radial-gradient from-brand-orange/5 to-transparent blur-2xl pointer-events-none" />
+                <div className="aspect-square w-full rounded-2xl overflow-hidden bg-black/20 border border-white/5 group">
+                  <img
+                    src={selectedProduct.image}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Details & Actions */}
+              <div className="w-full md:w-1/2 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto text-start font-display">
+                <div className="space-y-4">
+                  {/* Category & Lock Status badge */}
+                  <div className="flex justify-between items-center">
+                    <span className="px-2.5 py-0.5 bg-brand-gold/15 border border-brand-gold/30 text-[9px] font-black tracking-widest text-brand-gold rounded uppercase">
+                      {getCategoryLabel(selectedProduct.category)}
+                    </span>
+                    {selectedProduct.is_locked ? (
+                      <span className="px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 rounded uppercase flex items-center gap-1">
+                        <Lock size={10} /> Locked
+                      </span>
+                    ) : selectedProduct.stock <= 0 ? (
+                      <span className="px-2 py-0.5 bg-red-950/80 border border-red-700/30 text-[9px] font-bold text-red-500 rounded uppercase flex items-center gap-1">
+                        Sold Out
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-400">
+                        ● {language === 'id' ? 'Stok Tersedia' : 'In Stock'}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-title font-black uppercase text-white leading-tight">
+                    {selectedProduct.name}
+                  </h3>
+
+                  <div className="text-xl sm:text-2xl font-title font-black text-brand-orange">
+                    Rp {selectedProduct.price.toLocaleString('id-ID')}
+                  </div>
+
+                  <p className="text-xs text-gray-400 leading-relaxed pt-2">
+                    {selectedProduct.description}
+                  </p>
+
+                  {/* Size Selector (only applicable to jerseys/shoes/caps usually) */}
+                  {!selectedProduct.is_locked && selectedProduct.stock > 0 && (
+                    <div className="space-y-2.5 pt-4">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
+                        {language === 'id' ? 'PILIH UKURAN' : 'SELECT SIZE'}
+                      </span>
+                      <div className="flex gap-2">
+                        {['S', 'M', 'L', 'XL', 'XXL'].map((size) => {
+                          const isActive = selectedSize === size;
+                          return (
+                            <button
+                              key={size}
+                              onClick={() => setSelectedSize(size)}
+                              className={`w-10 h-10 border rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-brand-orange border-brand-orange text-brand-black glow-orange font-black scale-105'
+                                  : 'border-white/10 hover:border-white/20 text-gray-400 hover:text-white hover:bg-white/5 bg-transparent'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stock Level Warning banner */}
+                  {!selectedProduct.is_locked && selectedProduct.stock > 0 && selectedProduct.stock <= 15 && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-xl flex items-center gap-2 mt-4 leading-normal">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      <span>
+                        {language === 'id' 
+                          ? `Edisi Terbatas! Hanya tersisa ${selectedProduct.stock} item lagi di gudang kami.`
+                          : `Limited Edition! Only ${selectedProduct.stock} items remaining in our inventory.`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-8 space-y-4">
+                  {/* Add to Cart checkout action button */}
+                  <button
+                    onClick={() => {
+                      handleAddToCartWithSize(selectedProduct, selectedSize);
+                      setSelectedProduct(null);
+                    }}
+                    disabled={selectedProduct.is_locked || selectedProduct.stock <= 0}
+                    className="w-full py-4 bg-brand-orange hover:bg-brand-burnt disabled:bg-white/5 disabled:border-transparent text-brand-black disabled:text-gray-500 disabled:cursor-not-allowed font-black text-xs tracking-[0.2em] rounded-xl uppercase transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-brand-orange/20"
+                  >
+                    {selectedProduct.is_locked ? (
+                      <>
+                        <Lock size={14} /> {t('shop', 'lockedProduct') || 'LOCKED'}
+                      </>
+                    ) : selectedProduct.stock <= 0 ? (
+                      <>
+                        <X size={14} /> {t('shop', 'outOfStock')}
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag size={14} /> {language === 'id' ? `TAMBAH KE TAS (UKURAN ${selectedSize})` : `ADD TO BAG (SIZE ${selectedSize})`}
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-[10px] text-gray-500 leading-normal text-center">
+                    {language === 'id' 
+                      ? 'Pemesanan diverifikasi secara resmi via WhatsApp + klaim lencana eksklusif fan club.' 
+                      : 'Orders verified securely via WhatsApp with exclusive fan club badge rewards.'}
+                  </div>
+                </div>
+
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </section>
   );

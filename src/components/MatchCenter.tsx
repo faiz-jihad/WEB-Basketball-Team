@@ -5,11 +5,13 @@ import { db } from '../lib/supabase';
 import type { Match, Standing } from '../lib/supabase';
 import useAppStore from '../lib/store';
 import { getTranslation } from '../lib/i18n';
+import { useNavigate } from 'react-router-dom';
 
 export const MatchCenter: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [filter, setFilter] = useState<'all' | 'live' | 'upcoming' | 'past'>('all');
+  const navigate = useNavigate();
   
   const addToast = useAppStore(state => state.addToast);
   const language = useAppStore(state => state.language);
@@ -236,9 +238,12 @@ export const MatchCenter: React.FC = () => {
                     {match.status === 'UPCOMING' && (
                       <button
                         onClick={() => {
-                          window.dispatchEvent(new CustomEvent('bsq_select_match_for_booking', { detail: { matchId: match.id } }));
-                          const target = document.getElementById('tickets');
-                          target?.scrollIntoView({ behavior: 'smooth' });
+                          navigate('/tickets');
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent('bsq_select_match_for_booking', { detail: { matchId: match.id } }));
+                            const target = document.getElementById('tickets');
+                            target?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
                         }}
                         className="px-3.5 py-1.5 bg-brand-orange hover:bg-brand-burnt text-brand-black font-display font-black text-[10px] tracking-widest rounded-lg uppercase transition-all cursor-pointer"
                       >
