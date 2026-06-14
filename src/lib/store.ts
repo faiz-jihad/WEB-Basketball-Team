@@ -25,6 +25,7 @@ export interface BookedTicket {
   seatNumber: string;
   qrCode: string;
   date: string;
+  verified?: boolean;
 }
 
 export interface ToastMessage {
@@ -58,6 +59,7 @@ interface AppState {
   clearSelectedSeats: () => void;
   bookedTickets: BookedTicket[];
   bookSeats: (matchId: string, opponent: string, date: string) => void;
+  verifyTicket: (qrCode: string) => void;
 
   // Toasts
   toasts: ToastMessage[];
@@ -285,6 +287,17 @@ export const useAppStore = create<AppState>()(
         bookedTickets: [...state.bookedTickets, ...newBookings],
         selectedSeats: []
       };
+    });
+  },
+  verifyTicket: (qrCode) => {
+    set(state => {
+      const tickets = state.bookedTickets.map(t => {
+        if (t.qrCode === qrCode) {
+          return { ...t, verified: true };
+        }
+        return t;
+      });
+      return { bookedTickets: tickets };
     });
   },
 

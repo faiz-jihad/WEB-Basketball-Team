@@ -132,9 +132,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const addToast = useAppStore((state) => state.addToast);
   const addXP = useAppStore((state) => state.addXP);
   const language = useAppStore((state) => state.language);
+  const bookedTickets = useAppStore((state) => state.bookedTickets);
+  const verifyTicket = useAppStore((state) => state.verifyTicket);
   const t = (section: string, key: string) =>
     getTranslation(language, section, key);
   const isRtl = language === "ar";
+
+  const [searchQrCode, setSearchQrCode] = useState("");
+  const [verificationResult, setVerificationResult] = useState<{
+    status: 'valid' | 'invalid';
+    ticket: BookedTicket;
+  } | null>(null);
+
+  const handleSearchQr = () => {
+    if (!searchQrCode.trim()) return;
+    const tix = bookedTickets.find(t => t.qrCode.toLowerCase() === searchQrCode.trim().toLowerCase());
+    if (tix) {
+      setVerificationResult({ status: 'valid', ticket: tix });
+    } else {
+      setVerificationResult({ status: 'invalid', ticket: {} as any });
+    }
+  };
+
+  const handleConfirmVerify = (qr: string) => {
+    verifyTicket(qr);
+    addToast(
+      "success",
+      language === "id" ? "Tiket Diverifikasi" : "Ticket Verified",
+      language === "id" ? `Kode QR ${qr} berhasil diverifikasi.` : `QR Code ${qr} successfully checked-in.`
+    );
+    // Refresh verification result view
+    const latestTickets = useAppStore.getState().bookedTickets;
+    const updatedTix = latestTickets.find(t => t.qrCode === qr);
+    if (updatedTix) {
+      setVerificationResult({ status: 'valid', ticket: updatedTix });
+    }
+  };
 
   const getTabLabel = (tab: string) => {
     if (tab === "matches") return t("nav", "matches");
@@ -3235,7 +3268,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 {/* 6. BOOKINGS PANEL */}
                 {activeTab === "bookings" && (
-                  <div className="space-y-6">
+                  <div className="space-y-6 text-start">
                     <div className={`flex items-center justify-between border-b border-white/5 pb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
                       <h4 className="font-title font-extrabold uppercase text-white text-sm flex items-center gap-2">
                         <Ticket size={16} className="text-brand-orange" />{" "}
@@ -3243,20 +3276,92 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </h4>
                     </div>
 
+                    {/* Verification Search and Action Bar */}
+                    <div className="bg-white/2 border border-brand-orange/20 rounded-2xl p-5 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-radial-gradient from-brand-orange/5 via-transparent to-transparent pointer-events-none" />
+                      <h5 className="font-display font-black text-xs uppercase text-brand-orange tracking-widest mb-3">
+                        {language === "id" ? "Verifikasi Tiket QR" : "Verify Ticket QR"}
+                      </h5>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          placeholder={language === "id" ? "Masukkan Kode QR (misal: VBC-TIX-...)" : "Enter QR Code (e.g., VBC-TIX-...)"}
+                          value={searchQrCode}
+                          onChange={(e) => {
+                            setSearchQrCode(e.target.value);
+                            setVerificationResult(null);
+                          }}
+                          className="flex-1 bg-black/40 border border-white/10 focus:border-brand-orange focus:outline-none px-3 py-2.5 rounded-xl text-white text-xs font-mono"
+                        />
+                        <button
+                          onClick={handleSearchQr}
+                          className="px-6 py-2.5 bg-brand-orange hover:bg-brand-burnt text-brand-black font-display font-black text-xs tracking-wider uppercase rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          {language === "id" ? "Cari Tiket" : "Search Ticket"}
+                        </button>
+                      </div>
+
+                      {verificationResult && (
+                        <div className="mt-4 p-4 rounded-xl border bg-black/40 text-start text-xs font-display space-y-3 border-white/5">
+                          {verificationResult.status === 'valid' ? (
+                            <>
+                              <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase text-[10px]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                {language === "id" ? "Tiket Valid" : "Valid Ticket Found"}
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-white">
+                                <div>
+                                  <span className="text-[10px] text-gray-500 block uppercase">{language === "id" ? "Pertandingan" : "Matchup"}</span>
+                                  <span className="font-bold uppercase">vs {verificationResult.ticket.opponent}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-gray-500 block uppercase">{language === "id" ? "Tempat Duduk" : "Seat Location"}</span>
+                                  <span className="font-bold uppercase text-brand-gold">{verificationResult.ticket.seatNumber}</span>
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                                <div>
+                                  <span className="text-[9px] text-gray-400 block uppercase">{language === "id" ? "Status Kehadiran" : "Check-in Status"}</span>
+                                  {verificationResult.ticket.verified ? (
+                                    <span className="text-emerald-400 font-bold uppercase text-[10px]">{language === "id" ? "Sudah Hadir (Checked-in)" : "Checked-in"}</span>
+                                  ) : (
+                                    <span className="text-amber-500 font-bold uppercase text-[10px]">{language === "id" ? "Belum Hadir (Pending)" : "Pending check-in"}</span>
+                                  )}
+                                </div>
+                                {!verificationResult.ticket.verified && (
+                                  <button
+                                    onClick={() => handleConfirmVerify(verificationResult.ticket.qrCode)}
+                                    className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-brand-black font-black uppercase text-[10px] rounded-lg tracking-wider transition-colors cursor-pointer"
+                                  >
+                                    {language === "id" ? "Verifikasi & Hadir" : "Verify & Check-in"}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-red-400 font-bold uppercase text-[10px] flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-red-400" />
+                              {language === "id" ? "Tiket Tidak Ditemukan!" : "Ticket Not Found!"}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Booked Tickets List */}
-                    <div className="bg-white/2 border border-white/5 rounded-2xl overflow-hidden">
+                    <div className="bg-white/2 border border-white/5 rounded-2xl overflow-hidden text-start">
                       <div className="p-4 border-b border-white/5 bg-black/20">
                         <h5 className="font-bold text-brand-orange uppercase text-xs tracking-widest">
                           {language === "id" ? "Tiket Terpesan" : "Booked Tickets"}
                         </h5>
                       </div>
                       <div className="p-4 space-y-3">
-                        {(useAppStore.getState().bookedTickets || []).length === 0 ? (
+                        {(bookedTickets || []).length === 0 ? (
                           <div className="text-center py-6 text-gray-500 text-xs font-bold uppercase tracking-widest">
                             {language === "id" ? "Belum ada tiket yang dipesan." : "No tickets booked yet."}
                           </div>
                         ) : (
-                          (useAppStore.getState().bookedTickets || []).map((ticket, idx) => (
+                          (bookedTickets || []).map((ticket, idx) => (
                             <div key={idx} className={`flex items-center justify-between bg-black/40 border border-white/5 p-3 rounded-xl ${isRtl ? "flex-row-reverse" : ""}`}>
                               <div>
                                 <span className="text-[10px] text-gray-400 font-bold block">
@@ -3264,8 +3369,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 </span>
                                 <h6 className="text-white font-title font-bold text-sm">Seat {ticket.seatNumber}</h6>
                               </div>
-                              <div className={`text-[10px] font-bold text-brand-gold bg-brand-gold/10 px-2 py-1 rounded ${isRtl ? "ml-2" : "mr-2"}`}>
-                                {ticket.qrCode}
+                              <div className="flex items-center gap-3">
+                                <div className={`text-[10px] font-bold text-brand-gold bg-brand-gold/10 px-2 py-1 rounded ${isRtl ? "ml-2" : "mr-2"}`}>
+                                  {ticket.qrCode}
+                                </div>
+                                {ticket.verified ? (
+                                  <span className="text-[9px] font-bold text-emerald-450 bg-emerald-500/10 px-2 py-1 rounded uppercase tracking-wider">
+                                    {language === "id" ? "Sudah Hadir" : "Checked-in"}
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleConfirmVerify(ticket.qrCode)}
+                                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-brand-black font-black uppercase text-[9px] rounded-lg tracking-wider transition-colors cursor-pointer"
+                                  >
+                                    {language === "id" ? "Verifikasi" : "Verify"}
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))

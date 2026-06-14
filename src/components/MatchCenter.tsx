@@ -236,6 +236,7 @@ export const MatchCenter: React.FC = () => {
                     {match.status === 'UPCOMING' && (
                       <button
                         onClick={() => {
+                          window.dispatchEvent(new CustomEvent('bsq_select_match_for_booking', { detail: { matchId: match.id } }));
                           const target = document.getElementById('tickets');
                           target?.scrollIntoView({ behavior: 'smooth' });
                         }}

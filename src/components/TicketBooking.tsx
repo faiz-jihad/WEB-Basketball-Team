@@ -8,18 +8,14 @@ import { db } from '../lib/supabase';
 import type { Match } from '../lib/supabase';
 
 const SECTORS = [
-  { id: 'main', name: 'Main Tribune', price: 500000, color: 'text-brand-orange border-brand-orange/30 bg-brand-orange/5' }
+  { id: 'vip', name: 'VIP Court Side', priceMultiplier: 3.0, color: 'text-brand-gold border-brand-gold/30 bg-brand-gold/5' },
+  { id: 'west', name: 'West Main Tribune', priceMultiplier: 1.0, color: 'text-brand-orange border-brand-orange/30 bg-brand-orange/5' },
+  { id: 'east', name: 'East General Tribune', priceMultiplier: 0.6, color: 'text-white border-white/20 bg-white/5' }
 ];
 
 const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const SEAT_COLS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-// Pre-booked random seats to simulate stadium occupation
-const OCCUPIED_SEATS = [
-  'main-A-3', 'main-A-4', 'main-A-7', 'main-B-2', 'main-B-8',
-  'main-C-5', 'main-C-6', 'main-D-1', 'main-D-2', 'main-E-7',
-  'main-E-8', 'main-F-4', 'main-F-9'
-];
 
 export const TicketBooking: React.FC = () => {
   const [selectedSector, setSelectedSector] = useState(SECTORS[0]);
@@ -49,14 +45,31 @@ export const TicketBooking: React.FC = () => {
   useEffect(() => {
     db.from('matches').select('*').then(({ data }: any) => {
       if (data) {
-        const upcoming = (data as Match[]).filter(m => m.status === 'UPCOMING');
-        setUpcomingMatches(upcoming);
-        if (upcoming.length > 0) {
-          setSelectedMatch(upcoming[0]);
+        const filtered = (data as Match[]).filter(m => m.status === 'UPCOMING' || m.status === 'FINISHED');
+        setUpcomingMatches(filtered);
+        if (filtered.length > 0) {
+          const firstUpcoming = filtered.find(m => m.status === 'UPCOMING');
+          setSelectedMatch(firstUpcoming || filtered[0]);
         }
       }
     });
   }, []);
+
+  useEffect(() => {
+    const handleSelectMatch = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const matchId = customEvent.detail?.matchId;
+      if (matchId && upcomingMatches.length > 0) {
+        const match = upcomingMatches.find(m => m.id === matchId);
+        if (match) {
+          setSelectedMatch(match);
+          clearSelectedSeats();
+        }
+      }
+    };
+    window.addEventListener('bsq_select_match_for_booking', handleSelectMatch);
+    return () => window.removeEventListener('bsq_select_match_for_booking', handleSelectMatch);
+  }, [upcomingMatches, clearSelectedSeats]);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -71,7 +84,34 @@ export const TicketBooking: React.FC = () => {
   }, []);
 
   const getSectorName = (id: string) => {
-    return t('tickets', 'tribuneName');
+    const sec = SECTORS.find(s => s.id === id);
+    return sec ? sec.name : t('tickets', 'tribuneName');
+  };
+
+  const getSectorPrice = (sector: typeof SECTORS[0]) => {
+    return Math.round(ticketPrice * sector.priceMultiplier);
+  };
+
+  const getSectorDescription = (id: string) => {
+    if (id === 'vip') {
+      return language === 'id'
+        ? 'Dapatkan pengalaman lapangan utama terbaik. Kursi baris depan dengan pelayanan makanan premium dan akses VIP langsung.'
+        : language === 'ar'
+        ? 'احصل على أفضل تجربة في الملعب الرئيسي. مقاعد الصف الأمامي مع خدمة تقديم الطعام الفاخرة والدخول المباشر لكبار الشخصيات.'
+        : 'Get the absolute best court side view. Front row cushioned seats with premium hospitality service and direct VIP lounge entry.';
+    }
+    if (id === 'west') {
+      return language === 'id'
+        ? 'Seluruh penonton berada di tribun barat utama yang menghadap langsung ke lapangan dengan sudut pandang premium.'
+        : language === 'ar'
+        ? 'يجلس جميع المتفرجين في المدرج الرئيسي الغربي المواجه للملعب مباشرة بزاوية رؤية ممتازة.'
+        : 'All spectators are seated in the west main tribune facing the court directly with a premium sightline.';
+    }
+    return language === 'id'
+      ? 'Nikmati sudut pandang tribun timur dengan atmosfer pendukung yang sangat meriah dan penuh energi.'
+      : language === 'ar'
+      ? 'استمتع بزاوية المدرج الشرقي مع أجواء تشجيعية حماسية ومليئة بالطاقة.'
+      : 'Enjoy the east side tribune view with a highly energetic, supporter-oriented environment.';
   };
 
   const renderTitle = () => {
@@ -90,7 +130,10 @@ export const TicketBooking: React.FC = () => {
   };
 
   const isSeatOccupied = (seatId: string) => {
-    return OCCUPIED_SEATS.includes(seatId) || bookedTickets.some(tix => tix.matchId === selectedMatch?.id && tix.seatNumber === seatId);
+    if (!selectedMatch) return true;
+    if (selectedMatch.status === 'FINISHED') return false;
+    const userBooked = bookedTickets.some(tix => tix.matchId === selectedMatch.id && tix.seatNumber === seatId);
+    return userBooked;
   };
 
   const handleSeatClick = (seatId: string) => {
@@ -112,15 +155,19 @@ export const TicketBooking: React.FC = () => {
       colors: ['#FF5A00', '#FF7A00', '#D4AF37', '#ffffff']
     });
 
-    const cost = selectedSeats.length * ticketPrice;
+    const cost = selectedSeats.length * getSectorPrice(selectedSector);
     const phoneNumber = "6281234567890";
     const matchDateStr = new Date(selectedMatch.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nLawan: ${selectedMatch.opponent}\nTanggal: ${matchDateStr}\nTempat Duduk: ${selectedSeats.join(', ')}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
+    const seatDetails = selectedSeats.map(s => {
+      const parts = s.split('-');
+      return `${getSectorName(parts[0])} (Baris ${parts[1]} - Kursi ${parts[2]})`;
+    }).join(', ');
+    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nLawan: ${selectedMatch.opponent}\nTanggal: ${matchDateStr}\nTempat Duduk: ${seatDetails}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
     
     window.open(`https://wa.me/${phoneNumber}?text=${text}`, '_blank');
   };
 
-  const totalCost = selectedSeats.length * ticketPrice;
+  const totalCost = selectedSeats.length * getSectorPrice(selectedSector);
 
   return (
     <section id="tickets" className="py-24 px-6 bg-brand-black relative border-b border-white/5">
@@ -204,11 +251,35 @@ export const TicketBooking: React.FC = () => {
                   {upcomingMatches.map(m => (
                     <option key={m.id} value={m.id} className="bg-[#080808]">
                       BSQ ALL-FIVE vs {m.opponent} - {new Date(m.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {m.status === 'FINISHED' ? ` (${language === 'id' ? 'Selesai' : language === 'ar' ? 'منتهية' : 'Finished'})` : ''}
                     </option>
                   ))}
                 </select>
               </div>
             )}
+
+            {/* Sector Selector Tabs */}
+            <div className="flex flex-wrap gap-2.5 justify-center mb-10 font-display relative z-10">
+              {SECTORS.map(sec => {
+                const isSelected = selectedSector.id === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => {
+                      setSelectedSector(sec);
+                      clearSelectedSeats();
+                    }}
+                    className={`px-4 py-2.5 border rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      isSelected
+                        ? `${sec.color} scale-105 shadow-lg shadow-brand-orange/5`
+                        : 'text-gray-400 border-white/5 bg-white/2 hover:text-white hover:border-white/10'
+                    }`}
+                  >
+                    {sec.name} (Rp {getSectorPrice(sec).toLocaleString('id-ID')})
+                  </button>
+                );
+              })}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               
@@ -221,25 +292,21 @@ export const TicketBooking: React.FC = () => {
                     <div className={isRtl ? 'text-right' : 'text-left'}>
                       <span className="text-[10px] text-brand-gold block uppercase font-black tracking-widest">{t('tickets', 'activeStand')}</span>
                       <h3 className="text-xl font-title font-black text-white uppercase mt-1">
-                        {t('tickets', 'tribuneName')}
+                        {getSectorName(selectedSector.id)}
                       </h3>
                       <p className="text-[11px] text-gray-400 mt-1 max-w-md">
-                        {language === 'id' 
-                          ? 'Seluruh penonton berada di tribun barat utama yang menghadap langsung ke lapangan dengan sudut pandang premium.' 
-                          : language === 'ar' 
-                          ? 'يجلس جميع المتفرجين في المدرج الرئيسي الغربي المواجه للملعب مباشرة بزاوية رؤية ممتازة.' 
-                          : 'All spectators are seated in the west main tribune facing the court directly with a premium sightline.'}
+                        {getSectorDescription(selectedSector.id)}
                       </p>
                     </div>
                     <div className={`flex flex-col sm:items-end flex-shrink-0 ${isRtl ? 'sm:items-start text-right' : 'text-left sm:text-right'}`}>
                       <span className="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">{t('tickets', 'price')}</span>
-                      {ticketPrice === 0 ? (
+                      {getSectorPrice(selectedSector) === 0 ? (
                         <span className="text-2xl font-black text-green-500 mt-1 uppercase tracking-wider">
                           {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
                         </span>
                       ) : (
                         <span className="text-2xl font-black text-brand-orange mt-1">
-                          Rp {ticketPrice.toLocaleString('id-ID')}
+                          Rp {getSectorPrice(selectedSector).toLocaleString('id-ID')}
                         </span>
                       )}
                       <span className="text-[9px] text-gray-500 font-bold mt-1 uppercase tracking-wider">{t('tickets', 'flatRate')}</span>
@@ -349,7 +416,7 @@ export const TicketBooking: React.FC = () => {
 
                     <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-2">
                       <span className="text-sm font-bold text-gray-400">{t('tickets', 'total')}</span>
-                      {ticketPrice === 0 ? (
+                      {getSectorPrice(selectedSector) === 0 ? (
                         <span className="text-xl font-black text-green-500 uppercase tracking-wider">
                           {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
                         </span>
@@ -360,12 +427,47 @@ export const TicketBooking: React.FC = () => {
                       )}
                     </div>
 
+                    {selectedMatch && (
+                      <div className="mt-4 p-3 bg-white/2 border border-brand-orange/20 rounded-xl text-start font-display text-[10px] leading-relaxed text-gray-400 space-y-1">
+                        <span className="text-brand-orange font-bold uppercase tracking-wider block mb-1">
+                          {language === 'id' ? 'Ketentuan & Detail Laga' : language === 'ar' ? 'شروط وتفاصيل المباراة' : 'Terms & Match Details'}
+                        </span>
+                        <p>
+                          {language === 'id' 
+                            ? `• Tiket ini khusus untuk kursi pertandingan: BSQ ALL-FIVE vs ${selectedMatch.opponent}.`
+                            : `• This ticket is exclusively for matchup: BSQ ALL-FIVE vs ${selectedMatch.opponent}.`}
+                        </p>
+                        <p>
+                          {language === 'id' 
+                            ? `• Tanggal: ${new Date(selectedMatch.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} WIB.`
+                            : `• Date: ${new Date(selectedMatch.date).toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.`}
+                        </p>
+                        <p>
+                          {language === 'id' 
+                            ? '• Tiket non-refundable dan hanya valid untuk gerbang masuk Al Hikmah Arena.'
+                            : '• Tickets are non-refundable and only valid for Al Hikmah Arena gates.'}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedMatch?.status === 'FINISHED' && (
+                      <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl text-start font-display leading-relaxed">
+                        {language === 'id' 
+                          ? 'Pertandingan ini telah selesai. Kursi dapat dilihat (seluruhnya diaktifkan) tetapi pemesanan dinonaktifkan.'
+                          : language === 'ar'
+                          ? 'لقد انتهت هذه المباراة. يمكن عرض المقاعد (تم تفعيلها جميعاً) ولكن الحجز معطل.'
+                          : 'This match has ended. Seats can be viewed (all are enabled) but booking is disabled.'}
+                      </div>
+                    )}
+
                     <button
                       onClick={handleCheckout}
-                      disabled={selectedSeats.length === 0}
+                      disabled={selectedSeats.length === 0 || selectedMatch?.status === 'FINISHED'}
                       className="w-full mt-6 py-3.5 bg-brand-orange hover:bg-brand-burnt disabled:bg-white/5 disabled:text-gray-500 disabled:border-transparent text-brand-black disabled:cursor-not-allowed font-black text-xs tracking-[0.25em] rounded-xl uppercase transition-colors cursor-pointer border border-brand-orange/30 shadow-lg hover:shadow-brand-orange/20"
                     >
-                      {t('tickets', 'checkout')}
+                      {selectedMatch?.status === 'FINISHED' 
+                        ? (language === 'id' ? 'PERTANDINGAN SELESAI' : language === 'ar' ? 'انتهت المباراة' : 'MATCH FINISHED')
+                        : t('tickets', 'checkout')}
                     </button>
 
                     <div className="mt-4 flex items-start gap-2 text-[10px] text-gray-500 leading-relaxed text-start">
@@ -385,18 +487,22 @@ export const TicketBooking: React.FC = () => {
                       {(bookedTickets || []).map((tix, idx) => (
                         <div key={idx} className="border border-white/5 bg-white/2 rounded-2xl p-4 flex gap-4 items-center relative overflow-hidden">
                           <div className="w-16 h-16 bg-white flex items-center justify-center rounded-lg flex-shrink-0">
-                            {/* Simulated QR code */}
+                            {/* Simulated QR code deterministically colored */}
                             <div className="grid grid-cols-4 gap-1 w-12 h-12 bg-white">
-                              {[...Array(16)].map((_, i) => (
-                                <div key={i} className={`w-2.5 h-2.5 ${Math.random() > 0.4 ? 'bg-black' : 'bg-white'}`} />
-                              ))}
+                              {[...Array(16)].map((_, i) => {
+                                const charCode = tix.qrCode.charCodeAt(i % tix.qrCode.length) || 0;
+                                const isBlack = (charCode + i) % 2 === 0;
+                                return (
+                                  <div key={i} className={`w-2.5 h-2.5 ${isBlack ? 'bg-black' : 'bg-white'}`} />
+                                );
+                              })}
                             </div>
                           </div>
                           <div className="flex-1 min-w-0 text-start font-display">
                             <span className="text-[9px] text-brand-gold font-bold tracking-widest block uppercase">{t('tickets', 'tixSub')}</span>
                             <h5 className="font-title font-black text-white text-base leading-none mt-1 uppercase">vs {tix.opponent}</h5>
                             <span className="text-[9px] text-gray-400 block mt-1">
-                              {t('tickets', 'row')} {tix.seatNumber.split('-')[1]} - {t('tickets', 'seat')} {tix.seatNumber.split('-')[2]}
+                              {tix.seatNumber.split('-')[0].toUpperCase()} • {t('tickets', 'row')} {tix.seatNumber.split('-')[1]} - {t('tickets', 'seat')} {tix.seatNumber.split('-')[2]}
                             </span>
                             <span className="text-[8px] text-gray-650 block truncate mt-0.5">{tix.qrCode}</span>
                           </div>
