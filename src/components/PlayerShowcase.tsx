@@ -1196,7 +1196,7 @@ export const PlayerShowcase: React.FC = () => {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`fixed bottom-6 inset-x-6 z-[100] max-w-4xl mx-auto glass-panel-heavy border border-brand-orange/30 rounded-3xl p-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 ${
+            className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:fixed lg:bottom-6 inset-x-4 lg:inset-x-6 z-[1010] max-w-4xl mx-auto glass-panel-heavy border border-brand-orange/30 rounded-3xl p-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 ${
               isRtl ? 'md:flex-row-reverse' : ''
             }`}
           >

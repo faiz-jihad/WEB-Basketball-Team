@@ -31,6 +31,7 @@ import TermsPage from './components/TermsPage';
 import PrivacyPage from './components/PrivacyPage';
 import ContactPage from './components/ContactPage';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import CartDrawer from './components/CartDrawer';
 
 // Scroll To Top Component for smooth page transition resets
 function ScrollToTop() {
@@ -493,6 +494,9 @@ function App() {
 
       {/* 12. Floating Toast alerts center */}
       <ToastContainer />
+
+      {/* Global Shopping Cart Drawer */}
+      <CartDrawer />
 
       {/* Admin Panel Modal Overlay */}
       <ErrorBoundary>
