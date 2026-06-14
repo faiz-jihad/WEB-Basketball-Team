@@ -51,6 +51,7 @@ export const FanCommunity: React.FC = () => {
   }, []);
 
   // Prediction state
+  const [upcomingMatch, setUpcomingMatch] = useState<any>(null);
   const [homeScorePred, setHomeScorePred] = useState('110');
   const [awayScorePred, setAwayScorePred] = useState('105');
   const [hasPredicted, setHasPredicted] = useState(false);
@@ -60,7 +61,7 @@ export const FanCommunity: React.FC = () => {
   const [activeMatchId, setActiveMatchId] = useState('general');
   const [activeMatchName, setActiveMatchName] = useState('General Team Discussion');
 
-  // Fetch active match
+  // Fetch active match & nearest upcoming match
   useEffect(() => {
     (db as any).from('matches').select('*').then(({ data }: any) => {
       if (data && data.length > 0) {
@@ -75,9 +76,35 @@ export const FanCommunity: React.FC = () => {
             setActiveMatchName(`BSQ ALL-FIVE vs ${upcoming.opponent}`);
           }
         }
+
+        // Find nearest upcoming match sorted by date ascending
+        const upcomingMatches = data
+          .filter((m: any) => m.status === 'UPCOMING')
+          .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        if (upcomingMatches.length > 0) {
+          setUpcomingMatch(upcomingMatches[0]);
+        }
       }
     });
   }, []);
+
+  // Sync existing prediction from localStorage
+  useEffect(() => {
+    if (upcomingMatch) {
+      const savedPred = localStorage.getItem(`bsq_prediction_${upcomingMatch.id}`);
+      if (savedPred) {
+        const parsed = JSON.parse(savedPred);
+        setHomeScorePred(parsed.homeScore || '110');
+        setAwayScorePred(parsed.awayScore || '105');
+        setHasPredicted(true);
+      } else {
+        setHomeScorePred('110');
+        setAwayScorePred('105');
+        setHasPredicted(false);
+      }
+    }
+  }, [upcomingMatch]);
 
   // Fetch comments for active match
   useEffect(() => {
@@ -146,6 +173,13 @@ export const FanCommunity: React.FC = () => {
 
   const handlePredict = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!upcomingMatch) return;
+
+    localStorage.setItem(`bsq_prediction_${upcomingMatch.id}`, JSON.stringify({
+      homeScore: homeScorePred,
+      awayScore: awayScorePred
+    }));
+
     setHasPredicted(true);
     addXP(40); // Reward predicting upcoming matchups
     addToast('success', 'Prediction Saved! 🔮', 'You gained 40 XP. Check back post-match!');
@@ -216,7 +250,15 @@ export const FanCommunity: React.FC = () => {
             </div>
             
             <p className="text-xs text-gray-500 leading-relaxed mb-6 text-start">
-              {t('fan', 'upcomingGameDesc')}
+              {upcomingMatch ? (
+                language === 'id'
+                  ? `Pertandingan Mendatang: BSQ ALL-FIVE vs ${upcomingMatch.opponent}. Prediksikan skor akhir untuk mendapatkan XP dan lencana unik!`
+                  : language === 'ar'
+                  ? `المباراة القادمة: BSQ ALL-FIVE ضد ${upcomingMatch.opponent}. توقع النتيجة النهائية لكسب XP وشارات فريدة!`
+                  : `Upcoming Game: BSQ ALL-FIVE vs ${upcomingMatch.opponent}. Predict the final scoreboard to earn XP and unique badges!`
+              ) : (
+                t('fan', 'upcomingGameDesc')
+              )}
             </p>
 
             <AnimatePresence mode="wait">
@@ -264,7 +306,9 @@ export const FanCommunity: React.FC = () => {
                     <div className="flex items-center justify-between text-[10px] text-gray-400 font-display uppercase tracking-wider px-1">
                       <span className="flex-1 text-center truncate pr-2" title={t('fan', 'vortexHoops')}>{t('fan', 'vortexHoops')}</span>
                       <span className="w-8 flex-shrink-0"></span> {/* Spacer for VS alignment */}
-                      <span className="flex-1 text-center truncate pl-2" title={t('fan', 'solarFlares')}>{t('fan', 'solarFlares')}</span>
+                      <span className="flex-1 text-center truncate pl-2" title={upcomingMatch?.opponent || 'Opponent'}>
+                        {upcomingMatch?.opponent || 'Opponent'}
+                      </span>
                     </div>
 
                     {/* Inputs and VS (Bottom Row) */}
@@ -308,7 +352,7 @@ export const FanCommunity: React.FC = () => {
                   </div>
                   <h5 className="font-bold text-white uppercase text-sm">{t('fan', 'predictionLocked')}</h5>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    {t('fan', 'vortexHoops')} {homeScorePred} - {awayScorePred} {t('fan', 'solarFlares')}.
+                    {t('fan', 'vortexHoops')} {homeScorePred} - {awayScorePred} {upcomingMatch?.opponent || 'Opponent'}.
                   </p>
                   <p className="text-[9px] text-brand-gold mt-3 font-display uppercase tracking-widest">
                     {t('fan', 'xpRewardCredited')}

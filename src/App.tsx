@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Globe, Key, Menu, X } from 'lucide-react';
+import { ShoppingBag, Globe, Key } from 'lucide-react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, setupMessageListener, requestNotificationPermission } from './lib/firebase';
@@ -212,7 +212,6 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const langRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
 
@@ -375,81 +374,10 @@ function App() {
                 </span>
               )}
             </button>
-
-            {/* Mobile Hamburger Menu Toggle */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2.5 sm:p-3 bg-white/3 hover:bg-brand-orange/15 border border-white/10 hover:border-brand-orange/30 rounded-lg sm:rounded-xl transition-all cursor-pointer relative text-white hover:text-brand-orange flex items-center justify-center"
-              aria-label="Toggle Navigation Menu"
-            >
-              {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
-            </button>
           </div>
 
         </div>
 
-        {/* Mobile Menu Overlay */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="lg:hidden w-full bg-brand-black/95 backdrop-blur-xl border-b border-brand-orange/15 overflow-hidden"
-            >
-              <div className="px-6 py-6 flex flex-col gap-4 text-xs font-black tracking-widest uppercase text-gray-400">
-                <NavLink
-                  to="/"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
-                >
-                  {t('nav', 'home')}
-                </NavLink>
-                <NavLink
-                  to="/roster"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
-                >
-                  {t('nav', 'roster')}
-                </NavLink>
-                <NavLink
-                  to="/matches"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
-                >
-                  {t('nav', 'matches')}
-                </NavLink>
-                <NavLink
-                  to="/tickets"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
-                >
-                  {t('nav', 'tickets')}
-                </NavLink>
-                <NavLink
-                  to="/shop"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) => isActive ? 'text-brand-orange py-2 border-b border-white/5' : 'hover:text-brand-orange transition-colors py-2 border-b border-white/5'}
-                >
-                  {t('nav', 'shop')}
-                </NavLink>
-                <a
-                  href="#admin"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsMobileMenuOpen(false);
-                    setIsAdminOpen(true);
-                  }}
-                  className="hover:text-brand-orange transition-colors text-brand-gold flex items-center gap-1.5 py-2"
-                >
-                  <Key size={13} className="text-brand-orange" />
-                  <span>{t('nav', 'admin')}</span>
-                </a>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </nav>
 
       {/* Main Pages Router with AnimatePresence Page Transitions */}
