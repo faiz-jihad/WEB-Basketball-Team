@@ -37,7 +37,7 @@ const ProductCard3D: React.FC<{ children: React.ReactNode; onClick: () => void }
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className="bg-bg-card border border-white/5 rounded-3xl p-5 cursor-pointer relative overflow-hidden transition-all duration-200 select-none hover:border-brand-orange/20"
+      className="bg-bg-card border border-white/5 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 cursor-pointer relative overflow-hidden transition-all duration-200 select-none hover:border-brand-orange/20"
       style={{ transformStyle: 'preserve-3d', transition: 'transform 0.15s ease' }}
     >
       {children}
@@ -177,7 +177,7 @@ export const MerchandiseStore: React.FC = () => {
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-8">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((prod) => (
               <motion.div
@@ -211,7 +211,7 @@ export const MerchandiseStore: React.FC = () => {
                   ) : null}
 
                   {/* Product Image Frame */}
-                  <div className="aspect-square w-full rounded-2xl bg-black/40 overflow-hidden mb-6 flex items-center justify-center relative group">
+                  <div className="aspect-square w-full rounded-xl sm:rounded-2xl bg-black/40 overflow-hidden mb-3.5 sm:mb-6 flex items-center justify-center relative group">
                     <img
                       src={prod.image}
                       alt={prod.name}
@@ -221,22 +221,22 @@ export const MerchandiseStore: React.FC = () => {
                   </div>
 
                   {/* Title & Details */}
-                  <h3 className="text-lg font-title font-black uppercase text-white truncate mb-1 text-start">
+                  <h3 className="text-sm sm:text-lg font-title font-black uppercase text-white truncate mb-0.5 sm:mb-1 text-start">
                     {prod.name}
                   </h3>
-                  <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4 text-start">
+                  <p className="text-[10px] sm:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3 sm:mb-4 text-start">
                     {prod.description}
                   </p>
 
-                  <div className={`flex justify-between items-center border-t border-white/5 pt-4 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-2xl font-title font-black text-white">Rp {prod.price.toLocaleString('id-ID')}</span>
+                  <div className={`flex flex-col sm:flex-row justify-between sm:items-center gap-2 sm:gap-2 border-t border-white/5 pt-3 sm:pt-4 ${isRtl ? 'sm:flex-row-reverse' : ''}`}>
+                    <span className="text-lg sm:text-2xl font-title font-black text-white text-start">Rp {prod.price.toLocaleString('id-ID')}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAddToCart(prod);
                       }}
                       disabled={prod.is_locked || prod.stock <= 0}
-                      className={`px-4 py-2.5 font-display font-black text-[10px] tracking-widest rounded-xl uppercase transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg ${
+                      className={`w-full sm:w-auto justify-center px-2.5 py-2 sm:px-4 sm:py-2.5 font-display font-black text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest rounded-lg sm:rounded-xl uppercase transition-colors flex items-center gap-1 cursor-pointer shadow-lg ${
                         (prod.is_locked || prod.stock <= 0)
                           ? "bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed shadow-none"
                           : "bg-brand-orange hover:bg-brand-burnt text-brand-black shadow-brand-orange/15"
@@ -244,15 +244,15 @@ export const MerchandiseStore: React.FC = () => {
                     >
                       {prod.is_locked ? (
                         <>
-                          <X size={12} /> {t('shop', 'lockedProduct') || 'LOCKED'}
+                          <X size={10} /> <span className="truncate">{t('shop', 'lockedProduct') || 'LOCKED'}</span>
                         </>
                       ) : prod.stock <= 0 ? (
                         <>
-                          <X size={12} /> {t('shop', 'outOfStock')}
+                          <X size={10} /> <span className="truncate">{t('shop', 'outOfStock')}</span>
                         </>
                       ) : (
                         <>
-                          <ShoppingBag size={12} /> {t('shop', 'addToCart')}
+                          <ShoppingBag size={10} /> <span className="truncate">{t('shop', 'addToCart')}</span>
                         </>
                       )}
                     </button>

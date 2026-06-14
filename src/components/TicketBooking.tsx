@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, Info, Ticket } from 'lucide-react';
 import useAppStore from '../lib/store';
 import confetti from 'canvas-confetti';
 import { getTranslation } from '../lib/i18n';
+import { db } from '../lib/supabase';
+import type { Match } from '../lib/supabase';
 
 const SECTORS = [
   { id: 'main', name: 'Main Tribune', price: 500000, color: 'text-brand-orange border-brand-orange/30 bg-brand-orange/5' }
@@ -25,6 +27,9 @@ export const TicketBooking: React.FC = () => {
   const t = (section: string, key: string) => getTranslation(language, section, key);
   const isRtl = language === 'ar';
 
+  const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+
   const [ticketPrice, setTicketPrice] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('bsq_ticket_price');
@@ -41,7 +46,19 @@ export const TicketBooking: React.FC = () => {
     return 'open';
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
+    db.from('matches').select('*').then(({ data }: any) => {
+      if (data) {
+        const upcoming = (data as Match[]).filter(m => m.status === 'UPCOMING');
+        setUpcomingMatches(upcoming);
+        if (upcoming.length > 0) {
+          setSelectedMatch(upcoming[0]);
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     const handleUpdate = () => {
       const savedPrice = localStorage.getItem('bsq_ticket_price');
       const savedStatus = localStorage.getItem('bsq_ticket_status');
@@ -72,16 +89,20 @@ export const TicketBooking: React.FC = () => {
     );
   };
 
+  const isSeatOccupied = (seatId: string) => {
+    return OCCUPIED_SEATS.includes(seatId) || bookedTickets.some(tix => tix.matchId === selectedMatch?.id && tix.seatNumber === seatId);
+  };
+
   const handleSeatClick = (seatId: string) => {
-    if (OCCUPIED_SEATS.includes(seatId)) return;
+    if (isSeatOccupied(seatId)) return;
     selectSeat(seatId);
   };
 
   const handleCheckout = () => {
-    if (selectedSeats.length === 0) return;
+    if (selectedSeats.length === 0 || !selectedMatch) return;
     
     // Process booking in store
-    bookSeats('m3', 'Solar Flares', '2026-06-14T19:30:00Z');
+    bookSeats(selectedMatch.id, selectedMatch.opponent, selectedMatch.date);
 
     // Trigger championship confetti!
     confetti({
@@ -93,7 +114,8 @@ export const TicketBooking: React.FC = () => {
 
     const cost = selectedSeats.length * ticketPrice;
     const phoneNumber = "6281234567890";
-    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nTempat Duduk: ${selectedSeats.join(', ')}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
+    const matchDateStr = new Date(selectedMatch.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const text = encodeURIComponent(`Halo, saya ingin membeli tiket pertandingan dengan detail berikut:\n\nLawan: ${selectedMatch.opponent}\nTanggal: ${matchDateStr}\nTempat Duduk: ${selectedSeats.join(', ')}\nTotal Harga: Rp ${cost.toLocaleString('id-ID')}\n\nMohon informasi pembayarannya.`);
     
     window.open(`https://wa.me/${phoneNumber}?text=${text}`, '_blank');
   };
@@ -139,197 +161,254 @@ export const TicketBooking: React.FC = () => {
               <span className="uppercase">{t('hero', 'liveMatch')}</span>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            
-            {/* Left Side: Seat Map Selector */}
-            <div className="lg:col-span-8 flex flex-col items-center">
-              
-              {/* Main Tribune Info Card */}
-              <div className="w-full mb-8 font-display">
-                <div className="border border-brand-orange/20 bg-brand-orange/5 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className={isRtl ? 'text-right' : 'text-left'}>
-                    <span className="text-[10px] text-brand-gold block uppercase font-black tracking-widest">{t('tickets', 'activeStand')}</span>
-                    <h3 className="text-xl font-title font-black text-white uppercase mt-1">
-                      {t('tickets', 'tribuneName')}
-                    </h3>
-                    <p className="text-[11px] text-gray-400 mt-1 max-w-md">
-                      {language === 'id' 
-                        ? 'Seluruh penonton berada di tribun barat utama yang menghadap langsung ke lapangan dengan sudut pandang premium.' 
-                        : language === 'ar' 
-                        ? 'يجلس جميع المتفرجين في المدرج الرئيسي الغربي المواجه للملعب مباشرة بزاوية رؤية ممتازة.' 
-                        : 'All spectators are seated in the west main tribune facing the court directly with a premium sightline.'}
-                    </p>
-                  </div>
-                  <div className={`flex flex-col sm:items-end flex-shrink-0 ${isRtl ? 'sm:items-start text-right' : 'text-left sm:text-right'}`}>
-                    <span className="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">{t('tickets', 'price')}</span>
-                    {ticketPrice === 0 ? (
-                      <span className="text-2xl font-black text-green-500 mt-1 uppercase tracking-wider">
-                        {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
-                      </span>
-                    ) : (
-                      <span className="text-2xl font-black text-brand-orange mt-1">
-                        Rp {ticketPrice.toLocaleString('id-ID')}
-                      </span>
-                    )}
-                    <span className="text-[9px] text-gray-500 font-bold mt-1 uppercase tracking-wider">{t('tickets', 'flatRate')}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stadium Visualizer */}
-              <div className="w-full bg-white/2 border border-white/5 rounded-3xl p-8 flex flex-col items-center relative overflow-hidden">
-                
-                {/* Hoop Court Line (Representing Court side orientation) */}
-                <div className="w-3/4 h-6 bg-gradient-to-b from-brand-orange/20 to-transparent border-t-2 border-brand-orange/40 rounded-b-full flex items-center justify-center mb-16">
-                  <span className="text-[9px] text-brand-orange font-bold uppercase tracking-[0.4em] font-display">AL HIKMAH ARENA COURT FIELD</span>
-                </div>
-
-                {/* Seats Grid */}
-                <div className="grid gap-2 sm:gap-4 w-full max-w-[480px] overflow-x-auto py-2">
-                  {SEAT_ROWS.map((row) => (
-                    <div key={row} className="flex items-center gap-1.5 sm:gap-3 justify-center">
-                      <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
-                      <div className="flex-1 flex gap-1 sm:gap-2 justify-center">
-                        {SEAT_COLS.map((col) => {
-                          const seatId = `${selectedSector.id}-${row}-${col}`;
-                          const isOccupied = OCCUPIED_SEATS.includes(seatId);
-                          const isSelected = selectedSeats.includes(seatId);
-                          
-                          return (
-                            <button
-                              key={col}
-                              onClick={() => handleSeatClick(seatId)}
-                              disabled={isOccupied}
-                              className={`w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-md sm:rounded-lg border transition-all flex items-center justify-center font-display text-[8px] sm:text-[9px] font-bold cursor-pointer relative ${
-                                isOccupied
-                                  ? 'bg-white/5 border-transparent text-gray-700 cursor-not-allowed'
-                                  : isSelected
-                                  ? 'bg-brand-orange border-brand-orange text-brand-black glow-orange animate-pulse'
-                                  : 'bg-black/40 border-white/10 hover:border-brand-orange/60 text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              {col}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Legend */}
-                <div className="flex flex-wrap gap-6 mt-12 text-[10px] font-display font-semibold border-t border-white/5 pt-6 w-full justify-center">
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-black/40 border border-white/10" /> {t('tickets', 'available')}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-orange border border-brand-orange glow-orange" /> {t('tickets', 'selected')}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white/5" /> {t('tickets', 'occupied')}</span>
-                </div>
-
-              </div>
-
+        ) : upcomingMatches.length === 0 ? (
+          <div className="glass-panel-heavy rounded-3xl p-12 border border-brand-orange/20 max-w-2xl mx-auto flex flex-col items-center justify-center text-center glow-orange relative overflow-hidden py-16">
+            <div className="absolute inset-0 bg-radial-gradient from-brand-orange/5 via-transparent to-transparent pointer-events-none" />
+            <div className="w-20 h-20 rounded-full bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center mb-6 text-brand-orange animate-pulse">
+              <Info size={36} />
             </div>
+            <h3 className="text-2xl md:text-3xl font-title font-extrabold uppercase text-white tracking-wide mb-4">
+              {language === 'id' 
+                ? 'Tidak Ada Laga Mendatang' 
+                : language === 'ar' 
+                ? 'لا توجد مباريات قادمة' 
+                : 'No Upcoming Matches'}
+            </h3>
+            <p className="text-gray-300 font-display text-sm md:text-base leading-relaxed max-w-md">
+              {language === 'id' 
+                ? 'Saat ini belum ada pertandingan mendatang yang tersedia untuk pemesanan tiket. Silakan periksa kembali nanti.' 
+                : language === 'ar' 
+                ? 'لا توجد مباريات قادمة متاحة لحجز التذاكر حاليًا. يرجى التحقق لاحقًا.' 
+                : 'There are currently no upcoming matches available for ticket booking. Please check back later.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Match Selection Dropdown */}
+            {upcomingMatches.length > 1 && (
+              <div className="mb-12 max-w-md mx-auto relative z-10 font-display">
+                <label className="block text-[10px] font-black text-brand-orange uppercase tracking-widest mb-2.5 text-center">
+                  {language === 'id' ? 'PILIH PERTANDINGAN' : language === 'ar' ? 'اختر المباراة' : 'SELECT MATCHUP'}
+                </label>
+                <select
+                  value={selectedMatch?.id || ''}
+                  onChange={(e) => {
+                    const match = upcomingMatches.find(m => m.id === e.target.value);
+                    if (match) {
+                      setSelectedMatch(match);
+                      clearSelectedSeats();
+                    }
+                  }}
+                  className="w-full bg-[#121212] border border-white/10 hover:border-brand-orange/40 rounded-xl px-4 py-3.5 text-xs font-bold text-white focus:outline-none focus:border-brand-orange transition-all cursor-pointer text-center"
+                >
+                  {upcomingMatches.map(m => (
+                    <option key={m.id} value={m.id} className="bg-[#080808]">
+                      BSQ ALL-FIVE vs {m.opponent} - {new Date(m.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            {/* Right Side: Receipt & Booked Tickets */}
-            <div className="lg:col-span-4 flex flex-col gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               
-              {/* Purchase Checkout Summary */}
-              <div className="glass-panel-heavy rounded-3xl p-6 border border-white/5 relative">
-                <h3 className="font-title font-extrabold uppercase text-white mb-6 flex items-center gap-2 text-start">
-                  <Ticket size={18} className="text-brand-orange" /> {t('tickets', 'summary')}
-                </h3>
- 
-                <div className="space-y-4 font-display">
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-3">
-                    <span className="text-gray-500">{t('tickets', 'opponent')}</span>
-                    <span className="font-bold text-white uppercase">{t('matches', 'vs')} Solar Flares</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-3">
-                    <span className="text-gray-500">{t('tickets', 'arena')}</span>
-                    <span className="font-bold text-white">Al Hikmah Arena</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-3">
-                    <span className="text-gray-500">{t('tickets', 'sector')}</span>
-                    <span className="font-bold text-white">{getSectorName(selectedSector.id)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-3">
-                    <span className="text-gray-500">{t('tickets', 'qty')}</span>
-                    <span className="font-bold text-white">{selectedSeats.length} {t('tickets', 'tickets')}</span>
-                  </div>
-                  {selectedSeats.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 py-2">
-                      {selectedSeats.map(s => {
-                        const parts = s.split('-');
-                        return (
-                          <span key={s} className="px-2 py-0.5 bg-brand-orange/15 border border-brand-orange/30 text-brand-orange text-[9px] font-black rounded uppercase">
-                            {t('tickets', 'row')} {parts[1]} - {t('tickets', 'seat')} {parts[2]}
-                          </span>
-                        );
-                      })}
+              {/* Left Side: Seat Map Selector */}
+              <div className="lg:col-span-8 flex flex-col items-center">
+                
+                {/* Main Tribune Info Card */}
+                <div className="w-full mb-8 font-display">
+                  <div className="border border-brand-orange/20 bg-brand-orange/5 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className={isRtl ? 'text-right' : 'text-left'}>
+                      <span className="text-[10px] text-brand-gold block uppercase font-black tracking-widest">{t('tickets', 'activeStand')}</span>
+                      <h3 className="text-xl font-title font-black text-white uppercase mt-1">
+                        {t('tickets', 'tribuneName')}
+                      </h3>
+                      <p className="text-[11px] text-gray-400 mt-1 max-w-md">
+                        {language === 'id' 
+                          ? 'Seluruh penonton berada di tribun barat utama yang menghadap langsung ke lapangan dengan sudut pandang premium.' 
+                          : language === 'ar' 
+                          ? 'يجلس جميع المتفرجين في المدرج الرئيسي الغربي المواجه للملعب مباشرة بزاوية رؤية ممتازة.' 
+                          : 'All spectators are seated in the west main tribune facing the court directly with a premium sightline.'}
+                      </p>
                     </div>
-                  )}
-
-                  <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-2">
-                    <span className="text-sm font-bold text-gray-400">{t('tickets', 'total')}</span>
-                    {ticketPrice === 0 ? (
-                      <span className="text-xl font-black text-green-500 uppercase tracking-wider">
-                        {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
-                      </span>
-                    ) : (
-                      <span className="text-xl font-black text-brand-orange">
-                        Rp {totalCost.toLocaleString('id-ID')}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleCheckout}
-                    disabled={selectedSeats.length === 0}
-                    className="w-full mt-6 py-3.5 bg-brand-orange hover:bg-brand-burnt disabled:bg-white/5 disabled:text-gray-500 disabled:border-transparent text-brand-black disabled:cursor-not-allowed font-black text-xs tracking-[0.25em] rounded-xl uppercase transition-colors cursor-pointer border border-brand-orange/30 shadow-lg hover:shadow-brand-orange/20"
-                  >
-                    {t('tickets', 'checkout')}
-                  </button>
-
-                  <div className="mt-4 flex items-start gap-2 text-[10px] text-gray-500 leading-relaxed text-start">
-                    <CreditCard size={14} className="text-brand-gold flex-shrink-0 mt-0.5" />
-                    <span>{t('tickets', 'info')}</span>
+                    <div className={`flex flex-col sm:items-end flex-shrink-0 ${isRtl ? 'sm:items-start text-right' : 'text-left sm:text-right'}`}>
+                      <span className="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">{t('tickets', 'price')}</span>
+                      {ticketPrice === 0 ? (
+                        <span className="text-2xl font-black text-green-500 mt-1 uppercase tracking-wider">
+                          {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
+                        </span>
+                      ) : (
+                        <span className="text-2xl font-black text-brand-orange mt-1">
+                          Rp {ticketPrice.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                      <span className="text-[9px] text-gray-500 font-bold mt-1 uppercase tracking-wider">{t('tickets', 'flatRate')}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Active Booked Digital Tickets */}
-              {(bookedTickets || []).length > 0 && (
-                <div className="glass-panel-heavy rounded-3xl p-6 border border-white/5 relative">
-                  <h4 className="font-title font-extrabold uppercase text-white mb-4 flex items-center gap-2 text-start">
-                    <Ticket size={18} className="text-brand-gold" /> {t('tickets', 'tixTitle')}
-                  </h4>
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                    {(bookedTickets || []).map((tix, idx) => (
-                      <div key={idx} className="border border-white/5 bg-white/2 rounded-2xl p-4 flex gap-4 items-center relative overflow-hidden">
-                        <div className="w-16 h-16 bg-white flex items-center justify-center rounded-lg flex-shrink-0">
-                          {/* Simulated QR code */}
-                          <div className="grid grid-cols-4 gap-1 w-12 h-12 bg-white">
-                            {[...Array(16)].map((_, i) => (
-                              <div key={i} className={`w-2.5 h-2.5 ${Math.random() > 0.4 ? 'bg-black' : 'bg-white'}`} />
-                            ))}
-                          </div>
+                {/* Stadium Visualizer */}
+                <div className="w-full bg-white/2 border border-white/5 rounded-3xl p-8 flex flex-col items-center relative overflow-hidden">
+                  
+                  {/* Hoop Court Line (Representing Court side orientation) */}
+                  <div className="w-3/4 h-6 bg-gradient-to-b from-brand-orange/20 to-transparent border-t-2 border-brand-orange/40 rounded-b-full flex items-center justify-center mb-16">
+                    <span className="text-[9px] text-brand-orange font-bold uppercase tracking-[0.4em] font-display">AL HIKMAH ARENA COURT FIELD</span>
+                  </div>
+
+                  {/* Seats Grid */}
+                  <div className="grid gap-2 sm:gap-4 w-full max-w-[480px] overflow-x-auto py-2">
+                    {SEAT_ROWS.map((row) => (
+                      <div key={row} className="flex items-center gap-1.5 sm:gap-3 justify-center">
+                        <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
+                        <div className="flex-1 flex gap-1 sm:gap-2 justify-center">
+                          {SEAT_COLS.map((col) => {
+                            const seatId = `${selectedSector.id}-${row}-${col}`;
+                            const isOccupied = isSeatOccupied(seatId);
+                            const isSelected = selectedSeats.includes(seatId);
+                            
+                            return (
+                              <button
+                                key={col}
+                                onClick={() => handleSeatClick(seatId)}
+                                disabled={isOccupied}
+                                className={`w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-md sm:rounded-lg border transition-all flex items-center justify-center font-display text-[8px] sm:text-[9px] font-bold cursor-pointer relative ${
+                                  isOccupied
+                                    ? 'bg-white/5 border-transparent text-gray-700 cursor-not-allowed'
+                                    : isSelected
+                                    ? 'bg-brand-orange border-brand-orange text-brand-black glow-orange animate-pulse'
+                                    : 'bg-black/40 border-white/10 hover:border-brand-orange/60 text-gray-400 hover:text-white'
+                                }`}
+                              >
+                                {col}
+                              </button>
+                            );
+                          })}
                         </div>
-                        <div className="flex-1 min-w-0 text-start font-display">
-                          <span className="text-[9px] text-brand-gold font-bold tracking-widest block uppercase">{t('tickets', 'tixSub')}</span>
-                          <h5 className="font-title font-black text-white text-base leading-none mt-1 uppercase">vs {tix.opponent}</h5>
-                          <span className="text-[9px] text-gray-400 block mt-1">
-                            {t('tickets', 'row')} {tix.seatNumber.split('-')[1]} - {t('tickets', 'seat')} {tix.seatNumber.split('-')[2]}
-                          </span>
-                          <span className="text-[8px] text-gray-600 block truncate mt-0.5">{tix.qrCode}</span>
-                        </div>
+                        <span className="w-4 sm:w-6 font-title font-bold text-gray-600 text-[10px] sm:text-xs text-center">{row}</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
 
-          </div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-6 mt-12 text-[10px] font-display font-semibold border-t border-white/5 pt-6 w-full justify-center">
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-black/40 border border-white/10" /> {t('tickets', 'available')}</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-orange border border-brand-orange glow-orange" /> {t('tickets', 'selected')}</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white/5" /> {t('tickets', 'occupied')}</span>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Right Side: Receipt & Booked Tickets */}
+              <div className="lg:col-span-4 flex flex-col gap-6">
+                
+                {/* Purchase Checkout Summary */}
+                <div className="glass-panel-heavy rounded-3xl p-6 border border-white/5 relative">
+                  <h3 className="font-title font-extrabold uppercase text-white mb-6 flex items-center gap-2 text-start">
+                    <Ticket size={18} className="text-brand-orange" /> {t('tickets', 'summary')}
+                  </h3>
+   
+                  <div className="space-y-4 font-display">
+                    <div className="flex justify-between text-xs border-b border-white/5 pb-3">
+                      <span className="text-gray-500">{t('tickets', 'opponent')}</span>
+                      <span className="font-bold text-white uppercase">{t('matches', 'vs')} {selectedMatch?.opponent || 'Opponent'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-b border-white/5 pb-3">
+                      <span className="text-gray-500">{language === 'id' ? 'Tanggal' : language === 'ar' ? 'التاريخ' : 'Date'}</span>
+                      <span className="font-bold text-white">
+                        {selectedMatch 
+                          ? new Date(selectedMatch.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                          : '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs border-b border-white/5 pb-3">
+                      <span className="text-gray-500">{t('tickets', 'arena')}</span>
+                      <span className="font-bold text-white">Al Hikmah Arena</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-b border-white/5 pb-3">
+                      <span className="text-gray-500">{t('tickets', 'sector')}</span>
+                      <span className="font-bold text-white">{getSectorName(selectedSector.id)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-b border-white/5 pb-3">
+                      <span className="text-gray-500">{t('tickets', 'qty')}</span>
+                      <span className="font-bold text-white">{selectedSeats.length} {t('tickets', 'tickets')}</span>
+                    </div>
+                    {selectedSeats.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 py-2">
+                        {selectedSeats.map(s => {
+                          const parts = s.split('-');
+                          return (
+                            <span key={s} className="px-2 py-0.5 bg-brand-orange/15 border border-brand-orange/30 text-brand-orange text-[9px] font-black rounded uppercase">
+                              {t('tickets', 'row')} {parts[1]} - {t('tickets', 'seat')} {parts[2]}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-2">
+                      <span className="text-sm font-bold text-gray-400">{t('tickets', 'total')}</span>
+                      {ticketPrice === 0 ? (
+                        <span className="text-xl font-black text-green-500 uppercase tracking-wider">
+                          {language === 'id' ? 'GRATIS' : language === 'ar' ? 'مجاني' : 'FREE'}
+                        </span>
+                      ) : (
+                        <span className="text-xl font-black text-brand-orange">
+                          Rp {totalCost.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleCheckout}
+                      disabled={selectedSeats.length === 0}
+                      className="w-full mt-6 py-3.5 bg-brand-orange hover:bg-brand-burnt disabled:bg-white/5 disabled:text-gray-500 disabled:border-transparent text-brand-black disabled:cursor-not-allowed font-black text-xs tracking-[0.25em] rounded-xl uppercase transition-colors cursor-pointer border border-brand-orange/30 shadow-lg hover:shadow-brand-orange/20"
+                    >
+                      {t('tickets', 'checkout')}
+                    </button>
+
+                    <div className="mt-4 flex items-start gap-2 text-[10px] text-gray-500 leading-relaxed text-start">
+                      <CreditCard size={14} className="text-brand-gold flex-shrink-0 mt-0.5" />
+                      <span>{t('tickets', 'info')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Booked Digital Tickets */}
+                {(bookedTickets || []).length > 0 && (
+                  <div className="glass-panel-heavy rounded-3xl p-6 border border-white/5 relative">
+                    <h4 className="font-title font-extrabold uppercase text-white mb-4 flex items-center gap-2 text-start">
+                      <Ticket size={18} className="text-brand-gold" /> {t('tickets', 'tixTitle')}
+                    </h4>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                      {(bookedTickets || []).map((tix, idx) => (
+                        <div key={idx} className="border border-white/5 bg-white/2 rounded-2xl p-4 flex gap-4 items-center relative overflow-hidden">
+                          <div className="w-16 h-16 bg-white flex items-center justify-center rounded-lg flex-shrink-0">
+                            {/* Simulated QR code */}
+                            <div className="grid grid-cols-4 gap-1 w-12 h-12 bg-white">
+                              {[...Array(16)].map((_, i) => (
+                                <div key={i} className={`w-2.5 h-2.5 ${Math.random() > 0.4 ? 'bg-black' : 'bg-white'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0 text-start font-display">
+                            <span className="text-[9px] text-brand-gold font-bold tracking-widest block uppercase">{t('tickets', 'tixSub')}</span>
+                            <h5 className="font-title font-black text-white text-base leading-none mt-1 uppercase">vs {tix.opponent}</h5>
+                            <span className="text-[9px] text-gray-400 block mt-1">
+                              {t('tickets', 'row')} {tix.seatNumber.split('-')[1]} - {t('tickets', 'seat')} {tix.seatNumber.split('-')[2]}
+                            </span>
+                            <span className="text-[8px] text-gray-650 block truncate mt-0.5">{tix.qrCode}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </>
         )}
 
       </div>
