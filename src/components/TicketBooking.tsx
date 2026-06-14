@@ -8,9 +8,7 @@ import { db } from '../lib/supabase';
 import type { Match } from '../lib/supabase';
 
 const SECTORS = [
-  { id: 'vip', name: 'VIP Court Side', priceMultiplier: 3.0, color: 'text-brand-gold border-brand-gold/30 bg-brand-gold/5' },
-  { id: 'west', name: 'West Main Tribune', priceMultiplier: 1.0, color: 'text-brand-orange border-brand-orange/30 bg-brand-orange/5' },
-  { id: 'east', name: 'East General Tribune', priceMultiplier: 0.6, color: 'text-white border-white/20 bg-white/5' }
+  { id: 'west', name: 'West Main Tribune', priceMultiplier: 1.0, color: 'text-brand-orange border-brand-orange/30 bg-brand-orange/5' }
 ];
 
 const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -45,15 +43,28 @@ export const TicketBooking: React.FC = () => {
   useEffect(() => {
     db.from('matches').select('*').then(({ data }: any) => {
       if (data) {
-        const filtered = (data as Match[]).filter(m => m.status === 'UPCOMING' || m.status === 'FINISHED');
-        setUpcomingMatches(filtered);
-        if (filtered.length > 0) {
-          const firstUpcoming = filtered.find(m => m.status === 'UPCOMING');
-          setSelectedMatch(firstUpcoming || filtered[0]);
+        const matchesList = data as Match[];
+        
+        // 1. Only show UPCOMING matches in the booking list
+        const upcoming = matchesList.filter(m => m.status === 'UPCOMING');
+        setUpcomingMatches(upcoming);
+        if (upcoming.length > 0) {
+          setSelectedMatch(upcoming[0]);
+        }
+
+        // 2. Automatically filter out booked tickets for matches that are FINISHED
+        const finishedIds = matchesList.filter(m => m.status === 'FINISHED').map(m => m.id);
+        if (finishedIds.length > 0) {
+          const hasFinished = bookedTickets.some(t => finishedIds.includes(t.matchId));
+          if (hasFinished) {
+            useAppStore.setState({
+              bookedTickets: bookedTickets.filter(t => !finishedIds.includes(t.matchId))
+            });
+          }
         }
       }
     });
-  }, []);
+  }, [bookedTickets]);
 
   useEffect(() => {
     const handleSelectMatch = (e: Event) => {
@@ -259,27 +270,29 @@ export const TicketBooking: React.FC = () => {
             )}
 
             {/* Sector Selector Tabs */}
-            <div className="flex flex-wrap gap-2.5 justify-center mb-10 font-display relative z-10">
-              {SECTORS.map(sec => {
-                const isSelected = selectedSector.id === sec.id;
-                return (
-                  <button
-                    key={sec.id}
-                    onClick={() => {
-                      setSelectedSector(sec);
-                      clearSelectedSeats();
-                    }}
-                    className={`px-4 py-2.5 border rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                      isSelected
-                        ? `${sec.color} scale-105 shadow-lg shadow-brand-orange/5`
-                        : 'text-gray-400 border-white/5 bg-white/2 hover:text-white hover:border-white/10'
-                    }`}
-                  >
-                    {sec.name} (Rp {getSectorPrice(sec).toLocaleString('id-ID')})
-                  </button>
-                );
-              })}
-            </div>
+            {SECTORS.length > 1 && (
+              <div className="flex flex-wrap gap-2.5 justify-center mb-10 font-display relative z-10">
+                {SECTORS.map(sec => {
+                  const isSelected = selectedSector.id === sec.id;
+                  return (
+                    <button
+                      key={sec.id}
+                      onClick={() => {
+                        setSelectedSector(sec);
+                        clearSelectedSeats();
+                      }}
+                      className={`px-4 py-2.5 border rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        isSelected
+                          ? `${sec.color} scale-105 shadow-lg shadow-brand-orange/5`
+                          : 'text-gray-400 border-white/5 bg-white/2 hover:text-white hover:border-white/10'
+                      }`}
+                    >
+                      {sec.name} (Rp {getSectorPrice(sec).toLocaleString('id-ID')})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               

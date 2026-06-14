@@ -6,6 +6,7 @@ import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, setupMessageListener, requestNotificationPermission } from './lib/firebase';
 import db from './lib/supabase';
+import type { Match } from './lib/supabase';
 import useAppStore from './lib/store';
 import { getTranslation } from './lib/i18n';
 import { useRef } from 'react';
@@ -127,6 +128,7 @@ function App() {
   const language = useAppStore(state => state.language);
   const setLanguage = useAppStore(state => state.setLanguage);
   const addToast = useAppStore(state => state.addToast);
+  const bookedTickets = useAppStore(state => state.bookedTickets);
 
   const currentUserRef = useRef<string | null>(null);
 
@@ -158,6 +160,25 @@ function App() {
       document.documentElement.lang = language;
     }
   }, [language]);
+
+  // Clean up finished match tickets on app load / changes
+  useEffect(() => {
+    db.from('matches').select('*').then(({ data }: any) => {
+      if (data) {
+        const finishedMatchIds = (data as Match[])
+          .filter(m => m.status === 'FINISHED')
+          .map(m => m.id);
+        if (finishedMatchIds.length > 0) {
+          const hasFinished = bookedTickets.some(t => finishedMatchIds.includes(t.matchId));
+          if (hasFinished) {
+            useAppStore.setState({
+              bookedTickets: bookedTickets.filter(t => !finishedMatchIds.includes(t.matchId))
+            });
+          }
+        }
+      }
+    });
+  }, [bookedTickets]);
 
   useEffect(() => {
     if (!auth) return;
